@@ -12,7 +12,7 @@ fun main() {
     showMenu(wordsFile, dictionary)
 }
 
-fun showMenu(wordsFile: File, dictionary: MutableList<Word>) {
+fun showMenu(wordsFile: File, dictionary: List<Word>) {
 
     while (true) {
         println("Меню:\n1 - Учить слова\n2 - Добавить слово\n3 - Статистика\n0 - Выход\n")
@@ -38,13 +38,13 @@ fun learnWords() {
 
 }
 
-fun loadDictionary(wordsFile: File): MutableList<Word> {
+fun loadDictionary(wordsFile: File): List<Word> {
     val dictionary: MutableList<Word> = mutableListOf()
     addWordToDictionaryFromFile(wordsFile, dictionary)
-    return dictionary
+    return dictionary.toList()
 }
 
-fun showStats(dictionary: MutableList<Word>) {
+fun showStats(dictionary: List<Word>) {
     println("\nВаша статистика.")
     val learnedWords = (dictionary.filter { it.correctAnswersCount >= NUMBER_OF_CORRECT_ANSWERS }).size
     val wordsInFile = dictionary.size

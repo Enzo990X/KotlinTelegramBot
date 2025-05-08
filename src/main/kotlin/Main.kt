@@ -7,33 +7,59 @@ fun main() {
     val wordsFile = File("words.txt")
     wordsFile.createNewFile()
 
-    addWordToDictionary(wordsFile)
+    showMenu(wordsFile)
 
-    val dictionary: MutableList<Word> = mutableListOf()
-    addWordToDictionaryFromFile(wordsFile, dictionary)
+    val dictionary = loadDictionary(wordsFile)
+}
 
-    dictionary.forEach {
-        println("Слово ${it.original}. Перевод ${it.translated}. Правильных ответов: ${it.correctAnswersCount}.")
+fun showMenu(wordsFile: File) {
+
+    while (true) {
+        println("Меню:\n1 - Учить слова\n2 - Добавить слово\n3 - Статистика\n0 - Выход")
+        var menuInput = readln().toInt()
+        val validMenuInputs = listOf(MENU_ONE, MENU_TWO, MENU_THREE, MENU_ZERO)
+
+        while (menuInput !in validMenuInputs) {
+            println("Ошибка. Введите число 1, 2, 3 или 0.")
+            menuInput = readln().toInt()
+        }
+
+        when (menuInput) {
+            MENU_ONE -> learnWords()
+            MENU_TWO -> addWordToDictionary(wordsFile)
+            MENU_THREE -> showStats()
+            MENU_ZERO -> return
+        }
     }
 }
 
+fun learnWords() {
+    println("\nТренировка слов.\n")
+
+}
+
+fun loadDictionary(wordsFile: File): MutableList<Word> {
+    val dictionary: MutableList<Word> = mutableListOf()
+    addWordToDictionaryFromFile(wordsFile, dictionary)
+    return dictionary
+}
+
+fun showStats() {
+    println("\nВаша статистика.\n")
+}
+
 fun addWordToDictionary(wordsFile: File) {
-    println("Хотите пополнить Ваш словарь?")
-    val enterAnswer = readln()
 
-    if (enterAnswer.equals("да", ignoreCase = true)) {
+    do {
+        println("\nВведите новое слово и его перевод: ")
+        val newWord = createNewWord()
+        wordsFile.appendText(
+            "${newWord.original}|${newWord.translated}|${newWord.correctAnswersCount}\n",
+            Charsets.UTF_8
+        )
 
-        do {
-            println("\nВведите новое слово и его перевод: ")
-            val newWord = createNewWord()
-            wordsFile.appendText(
-                "${newWord.original}|${newWord.translated}|${newWord.correctAnswersCount}\n",
-                Charsets.UTF_8
-            )
-
-            println("\nХотите ввести ещё одно слово?")
-        } while (readln().equals("да", ignoreCase = true))
-    }
+        println("\nХотите ввести ещё одно слово?")
+    } while (readln().equals("да", ignoreCase = true))
 }
 
 fun createNewWord(): Word {
@@ -112,3 +138,8 @@ private const val ORIGINAL_INDEX = 0
 private const val TRANSLATED_INDEX = 1
 private const val CORRECT_ANSWERS_COUNT_INDEX = 2
 private const val BASE_CORRECT_ANSWERS_COUNT = 0.toShort()
+
+const val MENU_ONE = 1
+const val MENU_TWO = 2
+const val MENU_THREE = 3
+const val MENU_ZERO = 0

@@ -7,15 +7,15 @@ fun main() {
     val wordsFile = File("words.txt")
     wordsFile.createNewFile()
 
-    showMenu(wordsFile)
-
     val dictionary = loadDictionary(wordsFile)
+
+    showMenu(wordsFile, dictionary)
 }
 
-fun showMenu(wordsFile: File) {
+fun showMenu(wordsFile: File, dictionary: MutableList<Word>) {
 
     while (true) {
-        println("Меню:\n1 - Учить слова\n2 - Добавить слово\n3 - Статистика\n0 - Выход")
+        println("Меню:\n1 - Учить слова\n2 - Добавить слово\n3 - Статистика\n0 - Выход\n")
         var menuInput = readln().toInt()
         val validMenuInputs = listOf(MENU_ONE, MENU_TWO, MENU_THREE, MENU_ZERO)
 
@@ -27,7 +27,7 @@ fun showMenu(wordsFile: File) {
         when (menuInput) {
             MENU_ONE -> learnWords()
             MENU_TWO -> addWordToDictionary(wordsFile)
-            MENU_THREE -> showStats()
+            MENU_THREE -> showStats(dictionary)
             MENU_ZERO -> return
         }
     }
@@ -44,8 +44,13 @@ fun loadDictionary(wordsFile: File): MutableList<Word> {
     return dictionary
 }
 
-fun showStats() {
-    println("\nВаша статистика.\n")
+fun showStats(dictionary: MutableList<Word>) {
+    println("\nВаша статистика.")
+    val learnedWords = (dictionary.filter { it.correctAnswersCount >= NUMBER_OF_CORRECT_ANSWERS }).size
+    val wordsInFile = dictionary.size
+    val progressPercentage = (learnedWords.toFloat() / wordsInFile * PERCENTAGE).toInt()
+
+    println("Выучено $learnedWords из $wordsInFile слов. Ваш прогресс $progressPercentage%.\n")
 }
 
 fun addWordToDictionary(wordsFile: File) {
@@ -143,3 +148,6 @@ const val MENU_ONE = 1
 const val MENU_TWO = 2
 const val MENU_THREE = 3
 const val MENU_ZERO = 0
+
+const val NUMBER_OF_CORRECT_ANSWERS = 3.toShort()
+const val PERCENTAGE = 100

@@ -25,7 +25,7 @@ fun showMenu(wordsFile: File, dictionary: List<Word>) {
         }
 
         when (menuInput) {
-            MENU_ONE -> learnWords(dictionary, wordsFile)
+            MENU_ONE -> learnWords(dictionary)
             MENU_TWO -> addWordToDictionary(wordsFile)
             MENU_THREE -> showStats(dictionary)
             MENU_ZERO -> return
@@ -33,24 +33,19 @@ fun showMenu(wordsFile: File, dictionary: List<Word>) {
     }
 }
 
-fun learnWords(dictionary: List<Word>, wordsFile: File) {
+fun learnWords(dictionary: List<Word>) {
 
     while (true) {
-        var wordsToLearn = dictionary.filter { it.correctAnswersCount < NUMBER_OF_CORRECT_ANSWERS }
+        var notLearnedList = dictionary.filter { it.correctAnswersCount < NUMBER_OF_CORRECT_ANSWERS }
 
-        if (wordsToLearn.isEmpty()) {
+        if (notLearnedList.isEmpty()) {
             println("Все слова в словаре выучены!")
             return
         }
 
-        println("У Вас ${wordsToLearn.size} невыученных слов.\nСколько раз Вы хотите тренировать слова?")
-        var numberOfIterations = readInput()
+            val questionWords = notLearnedList.shuffled().take(WORDS_TO_LEARN)
 
-        while (numberOfIterations > 0) {
-            val countToLearn = numberOfIterations.coerceAtMost(wordsToLearn.size)
-            val selectedWords = wordsToLearn.shuffled().take(countToLearn)
-
-            for (word in selectedWords) {
+            for (word in questionWords) {
                 println("Выберите перевод слова ${word.original}.")
 
                 val incorrectTranslations = dictionary
@@ -71,46 +66,17 @@ fun learnWords(dictionary: List<Word>, wordsFile: File) {
                     println("Ошибка. Введите число 1, 2, 3 или 0.")
                     userAnswer = readInput()
                 }
-
-                if (translationsToPick[userAnswer - INDEX_UPDATE] == word.translated) {
-                    println("Правильно!\n")
-                    word.correctAnswersCount++
-                    updateWordInFile(wordsFile, word)
-                } else {
-                    println("Неправильно. Правильный ответ: ${word.translated}.\n")
-                }
             }
 
-            wordsToLearn = dictionary.filter { it.correctAnswersCount < NUMBER_OF_CORRECT_ANSWERS }
+            notLearnedList = dictionary.filter { it.correctAnswersCount < NUMBER_OF_CORRECT_ANSWERS }
 
-            if (wordsToLearn.isEmpty()) {
+            if (notLearnedList.isEmpty()) {
                 println("Все слова в словаре выучены!\n")
                 return
             }
-
-            numberOfIterations -= countToLearn
-        }
-
-        println("Вы закончили тренировку.")
-        break
     }
 }
 
-fun updateWordInFile(wordsFile: File, word: Word) {
-
-    val lines = wordsFile.readLines().toMutableList()
-
-    for (i in lines.indices) {
-        val separation = lines[i].split("|").toMutableList()
-        if (separation[ORIGINAL_INDEX] == word.original) {
-            separation[CORRECT_ANSWERS_COUNT_INDEX] = word.correctAnswersCount.toString()
-            lines[i] = separation.joinToString("|")
-            break
-        }
-    }
-
-    wordsFile.writeText(lines.joinToString("\n"))
-}
 
 fun readInput(): Int {
     while (true) {
@@ -245,6 +211,7 @@ const val ANSWER_THREE = 3
 const val ANSWER_FOUR = 4
 
 const val NUMBER_OF_CORRECT_ANSWERS = 3.toShort()
+const val WORDS_TO_LEARN = 4
 const val NUMBER_OF_INCORRECT_ANSWERS = 3
 const val PERCENTAGE = 100
 

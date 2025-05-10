@@ -25,7 +25,7 @@ fun showMenu(wordsFile: File, dictionary: List<Word>) {
         }
 
         when (menuInput) {
-            MENU_ONE -> learnWords()
+            MENU_ONE -> learnWords(dictionary)
             MENU_TWO -> addWordToDictionary(wordsFile)
             MENU_THREE -> showStats(dictionary)
             MENU_ZERO -> return
@@ -33,9 +33,65 @@ fun showMenu(wordsFile: File, dictionary: List<Word>) {
     }
 }
 
-fun learnWords() {
-    println("\nТренировка слов.\n")
+fun learnWords(dictionary: List<Word>) {
 
+    while (true) {
+        var notLearnedList = dictionary.filter { it.correctAnswersCount < NUMBER_OF_CORRECT_ANSWERS }
+
+        if (notLearnedList.isEmpty()) {
+            println("Все слова в словаре выучены!")
+            return
+        }
+
+            val questionWords = notLearnedList.shuffled().take(WORDS_TO_LEARN)
+
+            for (word in questionWords) {
+                println("Выберите перевод слова ${word.original}.")
+
+                val incorrectTranslations = dictionary
+                    .filter { it != word }
+                    .map { it.translated }
+                    .shuffled()
+                    .take(NUMBER_OF_INCORRECT_ANSWERS)
+                val translationsToPick = (listOf(word.translated) + incorrectTranslations).shuffled()
+
+                translationsToPick.forEachIndexed { index, translation ->
+                    println("${index + INDEX_UPDATE} - $translation")
+                }
+
+                var userAnswer = readInput()
+                val validUserAnswers = listOf(ANSWER_ONE, ANSWER_TWO, ANSWER_THREE, ANSWER_FOUR)
+
+                while (userAnswer !in validUserAnswers) {
+                    println("Ошибка. Введите число 1, 2, 3 или 0.")
+                    userAnswer = readInput()
+                }
+            }
+
+            notLearnedList = dictionary.filter { it.correctAnswersCount < NUMBER_OF_CORRECT_ANSWERS }
+
+            if (notLearnedList.isEmpty()) {
+                println("Все слова в словаре выучены!\n")
+                return
+            }
+    }
+}
+
+
+fun readInput(): Int {
+    while (true) {
+        val answer = readln()
+        if (answer.isEmpty()) {
+            println("Ошибка: пустая строка. Пожалуйста, введите число.")
+            continue
+        }
+
+        try {
+            return answer.toInt()
+        } catch (e: NumberFormatException) {
+            println("Ошибка: введите действительное число.")
+        }
+    }
 }
 
 fun loadDictionary(wordsFile: File): List<Word> {
@@ -149,5 +205,14 @@ const val MENU_TWO = 2
 const val MENU_THREE = 3
 const val MENU_ZERO = 0
 
+const val ANSWER_ONE = 1
+const val ANSWER_TWO = 2
+const val ANSWER_THREE = 3
+const val ANSWER_FOUR = 4
+
 const val NUMBER_OF_CORRECT_ANSWERS = 3.toShort()
+const val WORDS_TO_LEARN = 4
+const val NUMBER_OF_INCORRECT_ANSWERS = 3
 const val PERCENTAGE = 100
+
+const val INDEX_UPDATE = 1

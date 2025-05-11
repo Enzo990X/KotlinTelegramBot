@@ -25,7 +25,7 @@ fun showMenu(wordsFile: File, dictionary: List<Word>) {
         }
 
         when (menuInput) {
-            MENU_ONE -> learnWords(dictionary)
+            MENU_ONE -> learnWords(dictionary, wordsFile)
             MENU_TWO -> addWordToDictionary(wordsFile)
             MENU_THREE -> showStats(dictionary)
             MENU_ZERO -> return
@@ -33,50 +33,63 @@ fun showMenu(wordsFile: File, dictionary: List<Word>) {
     }
 }
 
-fun learnWords(dictionary: List<Word>) {
+fun learnWords(dictionary: List<Word>, wordsFile: File) {
 
-    while (true) {
-        var notLearnedList = dictionary.filter { it.correctAnswersCount < NUMBER_OF_CORRECT_ANSWERS }
+    val notLearnedList = dictionary.filter { it.correctAnswersCount < NUMBER_OF_CORRECT_ANSWERS }
 
-        if (notLearnedList.isEmpty()) {
-            println("Все слова в словаре выучены!")
-            return
+    if (notLearnedList.isEmpty()) {
+        println("Все слова в словаре выучены!")
+        return
+    }
+
+    val questionWords = notLearnedList.shuffled().take(WORDS_TO_LEARN)
+
+    for (word in questionWords) {
+        println("Выберите перевод слова ${word.original}.")
+
+        val incorrectTranslations = dictionary
+            .filter { it != word }
+            .map { it.translated }
+            .shuffled()
+            .take(NUMBER_OF_INCORRECT_ANSWERS)
+        val translationsToPick = (listOf(word.translated) + incorrectTranslations).shuffled()
+
+        translationsToPick.forEachIndexed { index, translation ->
+            println("${index + INDEX_UPDATE} - $translation")
         }
 
-            val questionWords = notLearnedList.shuffled().take(WORDS_TO_LEARN)
+        println("---------")
+        println("0 - вернуться в меню")
 
-            for (word in questionWords) {
-                println("Выберите перевод слова ${word.original}.")
+        var userAnswer = readInput()
+        val validUserAnswers = listOf(ANSWER_ONE, ANSWER_TWO, ANSWER_THREE, ANSWER_FOUR, MENU_ZERO)
 
-                val incorrectTranslations = dictionary
-                    .filter { it != word }
-                    .map { it.translated }
-                    .shuffled()
-                    .take(NUMBER_OF_INCORRECT_ANSWERS)
-                val translationsToPick = (listOf(word.translated) + incorrectTranslations).shuffled()
+        while (userAnswer !in validUserAnswers) {
+            println("Ошибка. Введите число 1, 2, 3, 4 или 0.")
+            userAnswer = readInput()
+        }
 
-                translationsToPick.forEachIndexed { index, translation ->
-                    println("${index + INDEX_UPDATE} - $translation")
-                }
+        if (userAnswer == 0) return
 
-                var userAnswer = readInput()
-                val validUserAnswers = listOf(ANSWER_ONE, ANSWER_TWO, ANSWER_THREE, ANSWER_FOUR)
-
-                while (userAnswer !in validUserAnswers) {
-                    println("Ошибка. Введите число 1, 2, 3 или 0.")
-                    userAnswer = readInput()
-                }
-            }
-
-            notLearnedList = dictionary.filter { it.correctAnswersCount < NUMBER_OF_CORRECT_ANSWERS }
-
-            if (notLearnedList.isEmpty()) {
-                println("Все слова в словаре выучены!\n")
-                return
-            }
+        if (translationsToPick[userAnswer - INDEX_UPDATE] == word.translated) {
+            println("Правильно!\n")
+            word.correctAnswersCount++
+            saveDictionary(dictionary, wordsFile)
+        } else {
+            println("Неправильно. Правильный ответ: ${word.translated}.\n")
+        }
     }
+
+    println("Вы закончили тренировку.")
 }
 
+fun saveDictionary(dictionary: List<Word>, wordsFile: File) {
+
+    wordsFile.writeText("")
+    dictionary.forEach { word ->
+        wordsFile.appendText("${word.original}|${word.translated}|${word.correctAnswersCount}")
+    }
+}
 
 fun readInput(): Int {
     while (true) {
@@ -168,10 +181,10 @@ fun addWordToDictionaryFromFile(wordsFile: File, dictionary: MutableList<Word>) 
 
 fun checkWords(input: String): Boolean {
     val inputSplit = input.split(" ")
-    return inputSplit[0].all { char ->
+    return inputSplit[ORIGINAL_INDEX].all { char ->
         (char in FIRST_EN_SMALL_CHAR..LAST_EN_SMALL_CHAR) ||
                 (char in FIRST_EN_BIG_CHAR..LAST_EN_BIG_CHAR)
-    } && inputSplit[1].all { char ->
+    } && inputSplit[TRANSLATED_INDEX].all { char ->
         (char in FIRST_RU_SMALL_CHAR..LAST_RU_SMALL_CHAR) ||
                 (char in FIRST_RU_BIG_CHAR..LAST_RU_BIG_CHAR)
     }

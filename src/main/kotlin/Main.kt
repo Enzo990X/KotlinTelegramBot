@@ -74,7 +74,7 @@ fun learnWords(dictionary: List<Word>, wordsFile: File) {
         if (translationsToPick[userAnswer - INDEX_UPDATE] == word.translated) {
             println("Правильно!\n")
             word.correctAnswersCount++
-            updateWordInFile(wordsFile, word)
+            saveDictionary(dictionary, wordsFile)
         } else {
             println("Неправильно. Правильный ответ: ${word.translated}.\n")
         }
@@ -83,20 +83,12 @@ fun learnWords(dictionary: List<Word>, wordsFile: File) {
     println("Вы закончили тренировку.")
 }
 
-fun updateWordInFile(wordsFile: File, word: Word) {
+fun saveDictionary(dictionary: List<Word>, wordsFile: File) {
 
-    val lines = wordsFile.readLines().toMutableList()
-
-    for (i in lines.indices) {
-        val separation = lines[i].split("|").toMutableList()
-        if (separation[ORIGINAL_INDEX] == word.original) {
-            separation[CORRECT_ANSWERS_COUNT_INDEX] = word.correctAnswersCount.toString()
-            lines[i] = separation.joinToString("|")
-            break
-        }
+    wordsFile.writeText("")
+    dictionary.forEach { word ->
+        wordsFile.appendText("${word.original}|${word.translated}|${word.correctAnswersCount}")
     }
-
-    wordsFile.writeText(lines.joinToString("\n"))
 }
 
 fun readInput(): Int {
@@ -189,10 +181,10 @@ fun addWordToDictionaryFromFile(wordsFile: File, dictionary: MutableList<Word>) 
 
 fun checkWords(input: String): Boolean {
     val inputSplit = input.split(" ")
-    return inputSplit[0].all { char ->
+    return inputSplit[ORIGINAL_INDEX].all { char ->
         (char in FIRST_EN_SMALL_CHAR..LAST_EN_SMALL_CHAR) ||
                 (char in FIRST_EN_BIG_CHAR..LAST_EN_BIG_CHAR)
-    } && inputSplit[1].all { char ->
+    } && inputSplit[TRANSLATED_INDEX].all { char ->
         (char in FIRST_RU_SMALL_CHAR..LAST_RU_SMALL_CHAR) ||
                 (char in FIRST_RU_BIG_CHAR..LAST_RU_BIG_CHAR)
     }

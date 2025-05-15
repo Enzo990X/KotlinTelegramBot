@@ -1,65 +1,49 @@
 package ktb
 
-import java.io.File
-
 fun main() {
 
-    val wordsFile = File("words.txt")
-    wordsFile.createNewFile()
+    val dictionary = Dictionary()
+    val trainer = LearnWordsTrainer()
 
-    val dictionary = loadDictionary(wordsFile)
-
-    showMenu(wordsFile, dictionary)
+    showMenu(dictionary, trainer)
 }
 
-fun showMenu(wordsFile: File, dictionary: List<Word>) {
+fun showMenu(dictionary: Dictionary, trainer: LearnWordsTrainer) {
 
     while (true) {
-        println("Меню:\n1 - Учить слова\n2 - Добавить слово\n3 - Статистика\n0 - Выход\n")
+        println("Меню:\n1 - Учить слова\n2 - Добавить слово\n3 - Статистика\n4 - Настройки\n0 - Выход\n")
         var menuInput = readln().toInt()
-        val validMenuInputs = listOf(MENU_ONE, MENU_TWO, MENU_THREE, MENU_ZERO)
+        val validMenuInputs = listOf(MENU_ONE, MENU_TWO, MENU_THREE, MENU_FOUR, MENU_ZERO)
 
         while (menuInput !in validMenuInputs) {
-            println("Ошибка. Введите число 1, 2, 3 или 0.")
+            println("Ошибка. Введите число 1, 2, 3, 4 или 0.")
             menuInput = readln().toInt()
         }
 
         when (menuInput) {
-            MENU_ONE -> learnWords(dictionary, wordsFile)
-            MENU_TWO -> addWordToDictionary(wordsFile)
-            MENU_THREE -> showStats(dictionary)
+            MENU_ONE -> learnWords(trainer)
+            MENU_TWO -> dictionary.addWordToDictionary()
+            MENU_THREE -> showStatistics(trainer)
+            MENU_FOUR -> trainer.changeSettings()
             MENU_ZERO -> return
         }
     }
 }
 
-fun learnWords(dictionary: List<Word>, wordsFile: File) {
+fun learnWords(trainer: LearnWordsTrainer) {
 
-    val notLearnedList = dictionary.filter { it.correctAnswersCount < NUMBER_OF_CORRECT_ANSWERS }
+    val numberOfWordsToTrain = trainer.getSettings()
 
-    if (notLearnedList.isEmpty()) {
-        println("Все слова в словаре выучены!")
-        return
-    }
+    repeat(numberOfWordsToTrain) {
+        val question = trainer.getNextQuestion()
+        trainer.question = question
 
-    val questionWords = notLearnedList.shuffled().take(WORDS_TO_LEARN)
-
-    for (word in questionWords) {
-        println("Выберите перевод слова ${word.original}.")
-
-        val incorrectTranslations = dictionary
-            .filter { it != word }
-            .map { it.translated }
-            .shuffled()
-            .take(NUMBER_OF_INCORRECT_ANSWERS)
-        val translationsToPick = (listOf(word.translated) + incorrectTranslations).shuffled()
-
-        translationsToPick.forEachIndexed { index, translation ->
-            println("${index + INDEX_UPDATE} - $translation")
+        if (question == null) {
+            println("Все слова в словаре выучены!")
+            return
         }
 
-        println("---------")
-        println("0 - вернуться в меню")
+        println(question.asConsoleString())
 
         var userAnswer = readInput()
         val validUserAnswers = listOf(ANSWER_ONE, ANSWER_TWO, ANSWER_THREE, ANSWER_FOUR, MENU_ZERO)
@@ -71,27 +55,31 @@ fun learnWords(dictionary: List<Word>, wordsFile: File) {
 
         if (userAnswer == 0) return
 
-        if (translationsToPick[userAnswer - INDEX_UPDATE] == word.translated) {
+        val userAnswerIndex = userAnswer - INDEX_UPDATE
+        val isCorrect = trainer.checkAnswer(userAnswerIndex)
+
+        if (isCorrect) {
             println("Правильно!\n")
-            word.correctAnswersCount++
-            saveDictionary(dictionary, wordsFile)
         } else {
-            println("Неправильно. Правильный ответ: ${word.translated}.\n")
+            println("Неправильно. Правильный ответ: ${question.learningWord.translations}.\n")
         }
     }
 
     println("Вы закончили тренировку.")
 }
 
-fun saveDictionary(dictionary: List<Word>, wordsFile: File) {
+fun showStatistics(trainer: LearnWordsTrainer) {
 
-    wordsFile.writeText("")
-    dictionary.forEach { word ->
-        wordsFile.appendText("${word.original}|${word.translated}|${word.correctAnswersCount}")
-    }
+    val statistics = trainer.getStatistics()
+    println(
+        "\nВаша статистика.\n" +
+                "Выучено ${statistics.learnedWords} из ${statistics.wordsInFile} слов. " +
+                "Ваш прогресс ${statistics.progressPercentage}%.\n"
+    )
 }
 
 fun readInput(): Int {
+
     while (true) {
         val answer = readln()
         if (answer.isEmpty()) {
@@ -107,125 +95,37 @@ fun readInput(): Int {
     }
 }
 
-fun loadDictionary(wordsFile: File): List<Word> {
-    val dictionary: MutableList<Word> = mutableListOf()
-    addWordToDictionaryFromFile(wordsFile, dictionary)
-    return dictionary.toList()
-}
+fun Question.asConsoleString(): String {
 
-fun showStats(dictionary: List<Word>) {
-    println("\nВаша статистика.")
-    val learnedWords = (dictionary.filter { it.correctAnswersCount >= NUMBER_OF_CORRECT_ANSWERS }).size
-    val wordsInFile = dictionary.size
-    val progressPercentage = (learnedWords.toFloat() / wordsInFile * PERCENTAGE).toInt()
+    val stringBuilder = StringBuilder()
+    stringBuilder.append("Выберите перевод слова ${this.learningWord.original}:\n")
 
-    println("Выучено $learnedWords из $wordsInFile слов. Ваш прогресс $progressPercentage%.\n")
-}
-
-fun addWordToDictionary(wordsFile: File) {
-
-    do {
-        println("\nВведите новое слово и его перевод: ")
-        val newWord = createNewWord()
-        wordsFile.appendText(
-            "${newWord.original}|${newWord.translated}|${newWord.correctAnswersCount}\n",
-            Charsets.UTF_8
-        )
-
-        println("\nХотите ввести ещё одно слово?")
-    } while (readln().equals("да", ignoreCase = true))
-}
-
-fun createNewWord(): Word {
-    val input = readWordInput()
-    val separation = input.split("|")
-
-    val originalInput = separation[ORIGINAL_INDEX]
-    val translatedInput = separation[TRANSLATED_INDEX]
-
-    return Word(originalInput, translatedInput, BASE_CORRECT_ANSWERS_COUNT)
-}
-
-fun readWordInput(): String {
-
-    var input = readln().lowercase()
-    while (input.isEmpty()) {
-        println("Ошибка: пустая строка. Повторите ввод.")
-        input = readln().lowercase()
+    this.translationsToPick.forEachIndexed { index, word ->
+        stringBuilder.append("${index + INDEX_UPDATE} - ${word.translations}\n")
     }
+    stringBuilder.append("0 - выход в меню")
 
-    while (input.split(" ").size != QUANTITY_OF_WORDS) {
-        println("Ошибка: введите два слова через пробел.")
-        input = readln().lowercase()
-    }
-
-    while (!checkWords(input)) {
-        println("Ошибка. Первое слово должно быть на английском языке, а второе - на русском. Повторите ввод.")
-        input = readln().lowercase()
-        checkWords(input)
-    }
-
-    input = input.split(" ").joinToString("|")
-    return input
-}
-
-fun addWordToDictionaryFromFile(wordsFile: File, dictionary: MutableList<Word>) {
-
-    for (line in wordsFile.readLines()) {
-        val splitLine = line.split("|")
-        val correctAnswersCount = splitLine[CORRECT_ANSWERS_COUNT_INDEX].toShortOrNull() ?: BASE_CORRECT_ANSWERS_COUNT
-        val word = Word(splitLine[ORIGINAL_INDEX], splitLine[TRANSLATED_INDEX], correctAnswersCount)
-        dictionary.add(word)
-    }
-}
-
-fun checkWords(input: String): Boolean {
-    val inputSplit = input.split(" ")
-    return inputSplit[ORIGINAL_INDEX].all { char ->
-        (char in FIRST_EN_SMALL_CHAR..LAST_EN_SMALL_CHAR) ||
-                (char in FIRST_EN_BIG_CHAR..LAST_EN_BIG_CHAR)
-    } && inputSplit[TRANSLATED_INDEX].all { char ->
-        (char in FIRST_RU_SMALL_CHAR..LAST_RU_SMALL_CHAR) ||
-                (char in FIRST_RU_BIG_CHAR..LAST_RU_BIG_CHAR)
-    }
+    return stringBuilder.toString()
 }
 
 data class Word(
     val original: String,
-    val translated: String,
+    val translations: String,
     var correctAnswersCount: Short = 0,
+    var usageCount: Int = 0
 )
 
-const val QUANTITY_OF_WORDS = 2
-
-private const val FIRST_EN_SMALL_CHAR = 'a'
-private const val LAST_EN_SMALL_CHAR = 'z'
-private const val FIRST_EN_BIG_CHAR = 'A'
-private const val LAST_EN_BIG_CHAR = 'Z'
-
-private const val FIRST_RU_SMALL_CHAR = 'а'
-private const val LAST_RU_SMALL_CHAR = 'я'
-private const val FIRST_RU_BIG_CHAR = 'А'
-private const val LAST_RU_BIG_CHAR = 'Я'
-
-private const val ORIGINAL_INDEX = 0
-private const val TRANSLATED_INDEX = 1
-private const val CORRECT_ANSWERS_COUNT_INDEX = 2
-private const val BASE_CORRECT_ANSWERS_COUNT = 0.toShort()
+const val BASE_CORRECT_ANSWERS_COUNT = 0.toShort()
 
 const val MENU_ONE = 1
 const val MENU_TWO = 2
 const val MENU_THREE = 3
+const val MENU_FOUR = 4
 const val MENU_ZERO = 0
 
 const val ANSWER_ONE = 1
 const val ANSWER_TWO = 2
 const val ANSWER_THREE = 3
 const val ANSWER_FOUR = 4
-
-const val NUMBER_OF_CORRECT_ANSWERS = 3.toShort()
-const val WORDS_TO_LEARN = 4
-const val NUMBER_OF_INCORRECT_ANSWERS = 3
-const val PERCENTAGE = 100
 
 const val INDEX_UPDATE = 1

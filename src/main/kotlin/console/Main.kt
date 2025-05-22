@@ -1,30 +1,34 @@
-package ktb
+package ktb.console
+
+import trainer.model.Dictionary
+import ktb.trainer.LearnWordsTrainer
+import trainer.model.Question
 
 fun main() {
 
     val dictionary = Dictionary()
-    val trainer = LearnWordsTrainer()
+    val trainer = LearnWordsTrainer(dictionary)
 
-    showMenu(dictionary, trainer)
+    showMenu(trainer)
 }
 
-fun showMenu(dictionary: Dictionary, trainer: LearnWordsTrainer) {
+fun showMenu(trainer: LearnWordsTrainer) {
 
     while (true) {
         println("Меню:\n1 - Учить слова\n2 - Добавить слово\n3 - Статистика\n4 - Настройки\n0 - Выход\n")
-        var menuInput = readln().toInt()
+        var menuInput = readInput()
         val validMenuInputs = listOf(MENU_ONE, MENU_TWO, MENU_THREE, MENU_FOUR, MENU_ZERO)
 
         while (menuInput !in validMenuInputs) {
             println("Ошибка. Введите число 1, 2, 3, 4 или 0.")
-            menuInput = readln().toInt()
+            menuInput = readInput()
         }
 
         when (menuInput) {
             MENU_ONE -> learnWords(trainer)
-            MENU_TWO -> dictionary.addWordToDictionary()
+            MENU_TWO -> Dictionary().addWordToDictionary()
             MENU_THREE -> showStatistics(trainer)
-            MENU_FOUR -> trainer.changeSettings()
+            MENU_FOUR -> trainer.settings.changeSettings()
             MENU_ZERO -> return
         }
     }
@@ -32,7 +36,9 @@ fun showMenu(dictionary: Dictionary, trainer: LearnWordsTrainer) {
 
 fun learnWords(trainer: LearnWordsTrainer) {
 
-    val numberOfWordsToTrain = trainer.getSettings()
+    val numberOfWordsToTrain = trainer.settings.numberOfIterations
+
+    trainer.resetUsage()
 
     repeat(numberOfWordsToTrain) {
         val question = trainer.getNextQuestion()
@@ -108,15 +114,6 @@ fun Question.asConsoleString(): String {
     return stringBuilder.toString()
 }
 
-data class Word(
-    val original: String,
-    val translations: String,
-    var correctAnswersCount: Short = 0,
-    var usageCount: Int = 0
-)
-
-const val BASE_CORRECT_ANSWERS_COUNT = 0.toShort()
-
 const val MENU_ONE = 1
 const val MENU_TWO = 2
 const val MENU_THREE = 3
@@ -129,3 +126,6 @@ const val ANSWER_THREE = 3
 const val ANSWER_FOUR = 4
 
 const val INDEX_UPDATE = 1
+
+const val WORDS_FILE = "words.txt"
+const val SETTINGS_FILE = "settings.txt"

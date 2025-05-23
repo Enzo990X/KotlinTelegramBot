@@ -15,7 +15,7 @@ fun main() {
 fun showMenu(trainer: LearnWordsTrainer) {
 
     while (true) {
-        println("Меню:\n1 - Учить слова\n2 - Добавить слово\n3 - Статистика\n4 - Настройки\n0 - Выход\n")
+        println("Меню:\n1 - Учить слова\n2 - Добавить слово\n3 - Статистика\n4 - Настройки\n0 - Выход")
         var menuInput = readInput()
         val validMenuInputs = listOf(MENU_ONE, MENU_TWO, MENU_THREE, MENU_FOUR, MENU_ZERO)
 
@@ -45,7 +45,7 @@ fun learnWords(trainer: LearnWordsTrainer) {
         trainer.question = question
 
         if (question == null) {
-            println("Все слова в словаре выучены!")
+            println("Нет слов для изучения!")
             return
         }
 

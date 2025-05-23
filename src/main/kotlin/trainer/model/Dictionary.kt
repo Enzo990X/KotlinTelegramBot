@@ -80,7 +80,7 @@ class Dictionary {
             break
         }
 
-        println("\nВведите перевод на кириллице: ")
+        println("\nВведите перевод: ")
         var cyrillicInput: String
 
         while (true) {
@@ -104,6 +104,7 @@ class Dictionary {
 
 
     private fun inputCheckForType(typeInput: String, latinInput: String): Boolean {
+
         val wordCount = latinInput.split(" ").size
 
         return when (typeInput) {
@@ -115,6 +116,7 @@ class Dictionary {
     }
 
     private fun isWordInDictionary(latinInput: String): Boolean {
+
         val currentDictionary = loadDictionary()
         return currentDictionary.any { it.original.equals(latinInput, ignoreCase = true) }
     }
@@ -138,6 +140,7 @@ class Dictionary {
     }
 
     fun saveDictionary(dictionary: List<Word>) {
+
         val wordsFile = File(WORDS_FILE)
         wordsFile.writeText("")
 
@@ -148,6 +151,7 @@ class Dictionary {
     }
 
     fun loadDictionary(): List<Word> {
+
         val dictionary = mutableListOf<Word>()
         val wordsFile = File(WORDS_FILE)
 
@@ -167,7 +171,7 @@ class Dictionary {
                     val correctAnswersCount = parts[FOURTH_INDEX].toShortOrNull() ?: START_CORRECT_ANSWERS_COUNT
                     val usageCount = parts[FIFTH_INDEX].toIntOrNull() ?: START_USAGE_COUNT
 
-                    dictionary.add(Word(original, translations, type, correctAnswersCount, usageCount))
+                    dictionary.add(Word(original, translations, type, correctAnswersCount, usageCount.toShort()))
                 }
             }
         } catch (e: Exception) {

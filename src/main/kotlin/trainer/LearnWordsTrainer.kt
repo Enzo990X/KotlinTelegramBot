@@ -7,6 +7,7 @@ import trainer.model.Statistics
 import trainer.model.Word
 
 class LearnWordsTrainer(private val dictionary: Dictionary) {
+
     var settings = Settings().apply { loadSettings() }
     var question: Question? = null
     private var currentDictionary: List<Word> = dictionary.loadDictionary()
@@ -23,6 +24,7 @@ class LearnWordsTrainer(private val dictionary: Dictionary) {
     }
 
     fun resetUsage() {
+
         currentDictionary.forEach { word ->
             word.usageCount = 0
         }
@@ -68,6 +70,7 @@ class LearnWordsTrainer(private val dictionary: Dictionary) {
     }
 
     fun checkAnswer(userAnswerIndex: Int?): Boolean {
+
         return question?.let {
             val correctAnswerIndex = it.translationsToPick.indexOf(it.learningWord)
 
@@ -82,6 +85,7 @@ class LearnWordsTrainer(private val dictionary: Dictionary) {
     }
 
     private fun refreshDictionary() {
+
         currentDictionary = dictionary.loadDictionary()
     }
 }

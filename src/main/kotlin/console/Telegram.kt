@@ -23,7 +23,7 @@ fun main(args: Array<String>) {
         }
 
         val messageTextRegex = Regex("\"text\":\"([^\"]+)\"")
-        val messageText = messageTextRegex.find(updates)?.groupValues?.get(1)
+        val messageText = messageTextRegex.find(updates)?.groupValues?.get(SECOND_INDEX)
         println("text: $messageText")
     }
 }

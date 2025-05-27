@@ -5,15 +5,16 @@ import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 
-class TelegramBotService(val botToken: String, val chatId: String) {
+class TelegramBotService(val botToken: String) {
+
+    private val client: HttpClient = HttpClient.newBuilder().build()
 
     fun sendMessage(botToken: String, chatId: String, message: String) {
 
         try {
             val encodedMessage = message.replace(" ", "%20")
             val urlSendMessage =
-                "https://api.telegram.org/bot$botToken/sendMessage?chat_id=$chatId&text=$encodedMessage"
-            val client = HttpClient.newBuilder().build()
+                "$API_URL$botToken/sendMessage?chat_id=$chatId&text=$encodedMessage"
             val request = HttpRequest.newBuilder()
                 .uri(URI.create(urlSendMessage))
                 .build()
@@ -42,3 +43,5 @@ class TelegramBotService(val botToken: String, val chatId: String) {
     }
 
 }
+
+const val API_URL = "https://api.telegram.org/bot"

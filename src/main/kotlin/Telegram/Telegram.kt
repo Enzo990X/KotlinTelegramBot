@@ -14,7 +14,7 @@ fun main(args: Array<String>) {
     val botToken = args[FIRST_INDEX]
     var updateId = START_UPDATE_ID
 
-    val service = TelegramBotService(botToken, "")
+    val service = TelegramBotService(botToken)
 
     while (true) {
         Thread.sleep(SLEEP)

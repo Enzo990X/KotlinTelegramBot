@@ -13,15 +13,18 @@ fun main(args: Array<String>) {
     while (true) {
         Thread.sleep(SLEEP)
         val updates = getUpdates(botToken, updateId)
-        println(updates)
 
-        val startUpdateId = updates.lastIndexOf("update_id")
-        val endUpdateId = updates.indexOf(",\n\"message\"", startUpdateId)
+        val updateIdRegex = Regex("update_id\":(\\d+)")
+        val updateIdMatch = updateIdRegex.find(updates)
+        val updateIdString = updateIdMatch?.groupValues?.get(SECOND_INDEX)
 
-        if (startUpdateId == WRONG_ID || endUpdateId == WRONG_ID) continue
-        val updateIdString = updates.substring(startUpdateId + ADDED_SYMBOLS_TO_START_INDEX, endUpdateId)
+        if (updateIdString != null) {
+            updateId = updateIdString.toInt() + INCREMENT
+        }
 
-        updateId = updateIdString.toInt() + INCREMENT
+        val messageTextRegex = Regex("\"text\":\"([^\"]+)\"")
+        val messageText = messageTextRegex.find(updates)?.groupValues?.get(SECOND_INDEX)
+        println("text: $messageText")
     }
 }
 
@@ -36,8 +39,7 @@ fun getUpdates(botToken: String, updateId: Int): String {
 }
 
 const val FIRST_INDEX = 0
+const val SECOND_INDEX = 1
 const val START_UPDATE_ID = 0
 const val SLEEP = 2000L
-const val WRONG_ID = -1
-const val ADDED_SYMBOLS_TO_START_INDEX = 11
 const val INCREMENT = 1

@@ -39,7 +39,6 @@ fun main(args: Array<String>) {
     }
 }
 
-
 const val FIRST_INDEX = 0
 const val SECOND_INDEX = 1
 const val START_UPDATE_ID = 0

@@ -9,6 +9,45 @@ class TelegramBotService(val botToken: String) {
 
     private val client: HttpClient = HttpClient.newBuilder().build()
 
+    companion object {
+        private const val API_URL = "https://api.telegram.org/bot"
+    }
+
+    fun sendMenu(botToken: String, chatId: String) {
+        try {
+            val urlSendMessage = "$API_URL$botToken/sendMessage"
+
+            val sendMessageBody = """
+        {
+            "chat_id": "$chatId",
+            "text": "Меню",
+            "reply_markup": {
+                "inline_keyboard": [
+                    [
+                        {"text": "Учить слова", "callback_data": "learn_words"},
+                        {"text": "Добавить слово", "callback_data": "add_word"}
+                    ],
+                    [
+                        {"text": "Статистика", "callback_data": "stats"},
+                        {"text": "Настройки", "callback_data": "settings"}
+                    ]
+                ]
+            }
+        }
+        """.trimIndent()
+
+            val request = HttpRequest.newBuilder()
+                .uri(URI.create(urlSendMessage))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(sendMessageBody))
+                .build()
+
+            val response = client.send(request, HttpResponse.BodyHandlers.ofString())
+        } catch (e: Exception) {
+            println("Failed to send message: ${e.message}")
+        }
+    }
+
     fun sendMessage(botToken: String, chatId: String, message: String) {
 
         try {
@@ -29,7 +68,6 @@ class TelegramBotService(val botToken: String) {
 
         return try {
             val urlGetUpdates = "https://api.telegram.org/bot$botToken/getUpdates?offset=$updateId&timeout=30"
-            val client = HttpClient.newBuilder().build()
             val request = HttpRequest.newBuilder()
                 .uri(URI.create(urlGetUpdates))
                 .build()
@@ -41,8 +79,4 @@ class TelegramBotService(val botToken: String) {
             ""
         }
     }
-
 }
-
-const val API_URL = "https://api.telegram.org/bot"
-

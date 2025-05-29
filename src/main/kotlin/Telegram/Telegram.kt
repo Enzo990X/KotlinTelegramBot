@@ -38,7 +38,7 @@ fun main(args: Array<String>) {
             data != null -> when (data.lowercase()) {
                 LEARN_WORDS -> service.sendMessage(botToken, chatId, "Learn words")
                 ADD_WORD -> service.sendMessage(botToken, chatId, "Add word")
-                STATS -> service.sendMessage(botToken, chatId, "Stats")
+                STATS -> service.showStats(trainer, chatId)
                 SETTINGS -> service.sendMessage(botToken, chatId, "Settings")
                 else -> Unit
             }

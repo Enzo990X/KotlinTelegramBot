@@ -1,11 +1,12 @@
 package Telegram
 
+import ktb.trainer.LearnWordsTrainer
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 
-class TelegramBotService(val botToken: String) {
+class TelegramBotService(private val botToken: String) {
 
     private val client: HttpClient = HttpClient.newBuilder().build()
 
@@ -24,12 +25,12 @@ class TelegramBotService(val botToken: String) {
             "reply_markup": {
                 "inline_keyboard": [
                     [
-                        {"text": "Учить слова", "callback_data": "learn_words"},
-                        {"text": "Добавить слово", "callback_data": "add_word"}
+                        {"text": "Учить слова", "callback_data": "$LEARN_WORDS"},
+                        {"text": "Добавить слово", "callback_data": "$ADD_WORD"}
                     ],
                     [
-                        {"text": "Статистика", "callback_data": "stats"},
-                        {"text": "Настройки", "callback_data": "settings"}
+                        {"text": "Статистика", "callback_data": "$STATS"},
+                        {"text": "Настройки", "callback_data": "$SETTINGS"}
                     ]
                 ]
             }
@@ -51,7 +52,7 @@ class TelegramBotService(val botToken: String) {
     fun sendMessage(botToken: String, chatId: String, message: String) {
 
         try {
-            val encodedMessage = message.replace(" ", "%20")
+            val encodedMessage = java.net.URLEncoder.encode(message, "UTF-8")
             val urlSendMessage =
                 "$API_URL$botToken/sendMessage?chat_id=$chatId&text=$encodedMessage"
             val request = HttpRequest.newBuilder()
@@ -77,6 +78,22 @@ class TelegramBotService(val botToken: String) {
         } catch (e: Exception) {
             println("Error getting updates: ${e.message}")
             ""
+        }
+    }
+
+    fun showStats(trainer: LearnWordsTrainer, chatId: String) {
+        try {
+            val statistics = trainer.getStatistics()
+            val message = """
+                | Ваша статистика
+                |
+                | Выучено: ${statistics.learnedWords} из ${statistics.wordsInFile} слов
+                | Прогресс: ${statistics.progressPercentage}%
+            """.trimMargin()
+
+            sendMessage(botToken, chatId, message)
+        } catch (e: Exception) {
+            println("Failed to show statistics: ${e.message}")
         }
     }
 }

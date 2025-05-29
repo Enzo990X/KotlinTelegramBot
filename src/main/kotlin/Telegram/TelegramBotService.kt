@@ -67,7 +67,7 @@ class TelegramBotService(val botToken: String) {
     fun getUpdates(botToken: String, updateId: Int): String {
 
         return try {
-            val urlGetUpdates = "https://api.telegram.org/bot$botToken/getUpdates?offset=$updateId&timeout=30"
+            val urlGetUpdates = "$API_URL$botToken/getUpdates?offset=$updateId&timeout=30"
             val request = HttpRequest.newBuilder()
                 .uri(URI.create(urlGetUpdates))
                 .build()

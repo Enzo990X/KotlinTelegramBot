@@ -31,31 +31,22 @@ fun main(args: Array<String>) {
         val messageText = messageTextRegex.find(updates)?.groupValues?.get(SECOND_INDEX)
 
         val chatIdMatch = chatIdRegex.find(updates)
-        val chatId = chatIdMatch?.groupValues?.get(SECOND_INDEX)
+        val chatId = chatIdMatch?.groupValues?.get(SECOND_INDEX) ?: continue
         val data = dataRegex.find(updates)?.groupValues?.get(SECOND_INDEX)
 
-        if (data?.equals("learn_words", ignoreCase = true) == true && chatId != null) {
-            service.sendMessage(botToken, chatId, "Learn words")
-        }
-
-        if (data?.equals("add_word", ignoreCase = true) == true && chatId != null) {
-            service.sendMessage(botToken, chatId, "Add word")
-        }
-
-        if (data?.equals("stats", ignoreCase = true) == true && chatId != null) {
-            service.sendMessage(botToken, chatId, "Stats")
-        }
-
-        if (data?.equals("settings", ignoreCase = true) == true && chatId != null) {
-            service.sendMessage(botToken, chatId, "Settings")
-        }
-
-        if (messageText?.equals("Hello", ignoreCase = true) == true && chatId != null) {
-            service.sendMessage(botToken, chatId, "Hello!")
-        }
-
-        if (messageText?.equals("/start", ignoreCase = true) == true && chatId != null) {
-            service.sendMenu(botToken, chatId)
+        when {
+            data != null -> when (data.lowercase()) {
+                LEARN_WORDS -> service.sendMessage(botToken, chatId, "Learn words")
+                ADD_WORD -> service.sendMessage(botToken, chatId, "Add word")
+                STATS -> service.sendMessage(botToken, chatId, "Stats")
+                SETTINGS -> service.sendMessage(botToken, chatId, "Settings")
+                else -> Unit
+            }
+            messageText != null -> when (messageText.lowercase()) {
+                HELLO.lowercase() -> service.sendMessage(botToken, chatId, "Hello!")
+                START.lowercase() -> service.sendMenu(botToken, chatId)
+                else -> Unit
+            }
         }
 
         if (updateIdString != null) {
@@ -69,3 +60,11 @@ const val SECOND_INDEX = 1
 const val START_UPDATE_ID = 0
 const val SLEEP = 2000L
 const val INCREMENT = 1
+
+const val LEARN_WORDS = "learn_words"
+const val ADD_WORD = "add_word"
+const val STATS = "stats"
+const val SETTINGS = "settings"
+
+const val HELLO = "Hello"
+const val START = "/start"

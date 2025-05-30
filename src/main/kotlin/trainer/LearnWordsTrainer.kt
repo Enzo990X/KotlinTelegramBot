@@ -6,9 +6,11 @@ import trainer.model.Settings
 import trainer.model.Statistics
 import trainer.model.Word
 
-class LearnWordsTrainer(private val dictionary: Dictionary) {
+class LearnWordsTrainer(
+    private val dictionary: Dictionary,
+    val settings: Settings = Settings().apply { loadSettings() },
+    ) {
 
-    var settings = Settings().apply { loadSettings() }
     var question: Question? = null
     private var currentDictionary: List<Word> = dictionary.loadDictionary()
 

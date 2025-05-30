@@ -17,43 +17,32 @@ fun main(args: Array<String>) {
     val chatIdRegex = Regex("chat\":\\{\"id\":(\\d+)")
     val dataRegex = Regex("\"data\":\"([^\"]+)\"")
 
-    val botToken = args[FIRST_INDEX]
     var updateId = START_UPDATE_ID
 
-    val service = TelegramBotService(botToken, dictionary)
-    val trainer = LearnWordsTrainer(Dictionary())
+    val service = TelegramBotService(args[FIRST_INDEX])
+    val trainer = LearnWordsTrainer(dictionary)
 
     while (true) {
         Thread.sleep(SLEEP)
-        val updates = service.getUpdates(botToken, updateId)
+        val updates = service.getUpdates(updateId)
 
         val updateIdMatch = updateIdRegex.find(updates)
-        val updateIdString = updateIdMatch?.groupValues?.get(SECOND_INDEX)
+        val updateIdString = updateIdMatch?.groupValues?.get(SECOND_INDEX)?.toIntOrNull() ?: continue
+
+        updateId = updateIdString + INCREMENT
 
         val messageText = messageTextRegex.find(updates)?.groupValues?.get(SECOND_INDEX)
 
         val chatIdMatch = chatIdRegex.find(updates)
         val chatId = chatIdMatch?.groupValues?.get(SECOND_INDEX) ?: continue
-        val data = dataRegex.find(updates)?.groupValues?.get(SECOND_INDEX)
+        val data = dataRegex.find(updates)?.groupValues?.get(SECOND_INDEX)?.lowercase()
 
         when {
-            data != null -> when (data.lowercase()) {
-                LEARN_WORDS -> service.sendMessage(botToken, chatId, "Learn words")
-                ADD_WORD -> service.sendMessage(botToken, chatId, "Add word")
-                STATS -> service.showStats(chatId)
-                SETTINGS -> service.sendMessage(botToken, chatId, "Settings")
-                START -> service.sendMenu(botToken, chatId)
-                else -> Unit
-            }
-            messageText != null -> when (messageText.lowercase()) {
-                HELLO.lowercase() -> service.sendMessage(botToken, chatId, "Hello!")
-                START.lowercase() -> service.sendMenu(botToken, chatId)
-                else -> Unit
-            }
-        }
-
-        if (updateIdString != null) {
-            updateId = updateIdString.toInt() + INCREMENT
+            data == LEARN_WORDS -> service.sendMessage(chatId, "Learn words")
+            data == ADD_WORD -> service.sendMessage(chatId, "Add word")
+            data == STATS -> service.showStats(chatId, trainer.getStatistics())
+            data == SETTINGS -> service.sendMessage(chatId, "Settings")
+            data == START || messageText == START -> service.sendMenu(chatId)
         }
     }
 }
@@ -69,5 +58,4 @@ const val ADD_WORD = "add_word"
 const val STATS = "stats"
 const val SETTINGS = "settings"
 
-const val HELLO = "Hello"
 const val START = "/start"

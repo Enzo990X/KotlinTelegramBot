@@ -1,16 +1,14 @@
 package telegram
 
-import trainer.NUMBER_OF_CORRECT_ANSWERS
-import trainer.PERCENTAGE
 import trainer.model.Statistics
-import trainer.model.Word
-import trainer.model.Dictionary
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 
-class TelegramBotService(private val botToken: String, private val dictionary: Dictionary) {
+class TelegramBotService(
+    private val botToken: String,
+) {
 
     private val client: HttpClient = HttpClient.newBuilder().build()
 
@@ -18,10 +16,11 @@ class TelegramBotService(private val botToken: String, private val dictionary: D
         private const val API_URL = "https://api.telegram.org/bot"
     }
 
-    fun sendMenu(botToken: String, chatId: String) {
-        try {
-            val urlSendMessage = "$API_URL$botToken/sendMessage"
+    fun sendMenu(chatId: String) {
 
+        try {
+
+            val urlSendMessage = "$API_URL$botToken/sendMessage"
             val sendMessageBody = """
         {
             "chat_id": "$chatId",
@@ -47,13 +46,13 @@ class TelegramBotService(private val botToken: String, private val dictionary: D
                 .POST(HttpRequest.BodyPublishers.ofString(sendMessageBody))
                 .build()
 
-            val response = client.send(request, HttpResponse.BodyHandlers.ofString())
+            client.send(request, HttpResponse.BodyHandlers.ofString())
         } catch (e: Exception) {
             println("Failed to send message: ${e.message}")
         }
     }
 
-    fun sendMessage(botToken: String, chatId: String, message: String) {
+    fun sendMessage(chatId: String, message: String) {
 
         try {
             val encodedMessage = java.net.URLEncoder.encode(message, "UTF-8")
@@ -69,7 +68,7 @@ class TelegramBotService(private val botToken: String, private val dictionary: D
         }
     }
 
-    fun getUpdates(botToken: String, updateId: Int): String {
+    fun getUpdates(updateId: Int): String {
 
         return try {
             val urlGetUpdates = "$API_URL$botToken/getUpdates?offset=$updateId&timeout=30"
@@ -85,20 +84,11 @@ class TelegramBotService(private val botToken: String, private val dictionary: D
         }
     }
 
-    private fun getStatistics(): Statistics {
 
-        val currentDictionary: List<Word> = dictionary.loadDictionary()
+    fun showStats(chatId: String, statistics: Statistics) {
 
-        val learnedWords = (currentDictionary.filter { it.correctAnswersCount >= NUMBER_OF_CORRECT_ANSWERS }).size
-        val wordsInFile = currentDictionary.size
-        val progressPercentage = (learnedWords.toFloat() / wordsInFile * PERCENTAGE).toInt()
-
-        return Statistics(learnedWords, wordsInFile, progressPercentage)
-    }
-
-    fun showStats(chatId: String) {
         try {
-            val statistics = getStatistics()
+
             val message = """
             | <b>Статистика</b>:
             | 
@@ -131,7 +121,8 @@ class TelegramBotService(private val botToken: String, private val dictionary: D
 
             client.send(request, HttpResponse.BodyHandlers.ofString())
         } catch (e: Exception) {
-            sendMessage(botToken, chatId, "Произошла ошибка при получении статистики")
+            println("Error getting statistics: ${e.message}")
+            sendMessage(chatId, "Произошла ошибка при получении статистики.")
         }
     }
 }

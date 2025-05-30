@@ -1,12 +1,16 @@
 package Telegram
 
-import ktb.trainer.LearnWordsTrainer
+import ktb.trainer.NUMBER_OF_CORRECT_ANSWERS
+import ktb.trainer.PERCENTAGE
+import trainer.model.Statistics
+import trainer.model.Word
+import trainer.model.Dictionary
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 
-class TelegramBotService(private val botToken: String) {
+class TelegramBotService(private val botToken: String, private val dictionary: Dictionary) {
 
     private val client: HttpClient = HttpClient.newBuilder().build()
 
@@ -81,19 +85,53 @@ class TelegramBotService(private val botToken: String) {
         }
     }
 
-    fun showStats(trainer: LearnWordsTrainer, chatId: String) {
-        try {
-            val statistics = trainer.getStatistics()
-            val message = """
-                | Ваша статистика
-                |
-                | Выучено: ${statistics.learnedWords} из ${statistics.wordsInFile} слов
-                | Прогресс: ${statistics.progressPercentage}%
-            """.trimMargin()
+    private fun getStatistics(): Statistics {
 
-            sendMessage(botToken, chatId, message)
+        val currentDictionary: List<Word> = dictionary.loadDictionary()
+
+        val learnedWords = (currentDictionary.filter { it.correctAnswersCount >= NUMBER_OF_CORRECT_ANSWERS }).size
+        val wordsInFile = currentDictionary.size
+        val progressPercentage = (learnedWords.toFloat() / wordsInFile * PERCENTAGE).toInt()
+
+        return Statistics(learnedWords, wordsInFile, progressPercentage)
+    }
+
+    fun showStats(chatId: String) {
+        try {
+            val statistics = getStatistics()
+            val message = """
+            | <b>Статистика</b>:
+            |
+            |Выучено: ${statistics.learnedWords} из ${statistics.wordsInFile} слов
+            |Прогресс: ${statistics.progressPercentage}%
+        """.trimMargin()
+
+            val urlSendMessage = "$API_URL$botToken/sendMessage"
+            val sendMessageBody = """
+        {
+            "chat_id": "$chatId",
+            "text": "$message",
+            "parse_mode": "HTML",
+            "reply_markup": {
+                "inline_keyboard": [
+                    [
+                        {"text": "Вернуться в меню", "callback_data": "$START"}
+                    ]
+                ]
+            }
+        }
+        """.trimIndent()
+
+            val request = HttpRequest.newBuilder()
+                .uri(URI.create(urlSendMessage))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(sendMessageBody))
+                .build()
+
+            client.send(request, HttpResponse.BodyHandlers.ofString())
         } catch (e: Exception) {
-            println("Failed to show statistics: ${e.message}")
+            sendMessage(botToken, chatId, "Произошла ошибка при получении статистики")
         }
     }
+
 }

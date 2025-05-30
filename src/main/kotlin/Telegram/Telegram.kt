@@ -10,6 +10,8 @@ fun main(args: Array<String>) {
         return
     }
 
+    val dictionary = Dictionary()
+
     val updateIdRegex = Regex("update_id\":(\\d+)")
     val messageTextRegex = Regex("\"text\":\"([^\"]+)\"")
     val chatIdRegex = Regex("chat\":\\{\"id\":(\\d+)")
@@ -18,7 +20,7 @@ fun main(args: Array<String>) {
     val botToken = args[FIRST_INDEX]
     var updateId = START_UPDATE_ID
 
-    val service = TelegramBotService(botToken)
+    val service = TelegramBotService(botToken, dictionary)
     val trainer = LearnWordsTrainer(Dictionary())
 
     while (true) {
@@ -38,8 +40,9 @@ fun main(args: Array<String>) {
             data != null -> when (data.lowercase()) {
                 LEARN_WORDS -> service.sendMessage(botToken, chatId, "Learn words")
                 ADD_WORD -> service.sendMessage(botToken, chatId, "Add word")
-                STATS -> service.showStats(trainer, chatId)
+                STATS -> service.showStats(chatId)
                 SETTINGS -> service.sendMessage(botToken, chatId, "Settings")
+                START -> service.sendMenu(botToken, chatId)
                 else -> Unit
             }
             messageText != null -> when (messageText.lowercase()) {

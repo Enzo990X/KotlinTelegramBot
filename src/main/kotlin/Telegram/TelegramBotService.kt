@@ -9,6 +9,7 @@ import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
+import java.time.Duration
 
 class TelegramBotService(private val botToken: String, private val dictionary: Dictionary) {
 
@@ -101,8 +102,10 @@ class TelegramBotService(private val botToken: String, private val dictionary: D
             val statistics = getStatistics()
             val message = """
             | <b>Статистика</b>:
-            |Выучено: ${statistics.learnedWords} из ${statistics.wordsInFile} слов
-            |Прогресс: ${statistics.progressPercentage}%
+            | 
+            |В Вашем словаре ${statistics.wordsInFile} элементов
+            |Вы точно запомнили ${statistics.learnedWords}
+            |Вы прошли ${statistics.progressPercentage}% пути
         """.trimMargin()
 
             val urlSendMessage = "$API_URL$botToken/sendMessage"
@@ -132,5 +135,4 @@ class TelegramBotService(private val botToken: String, private val dictionary: D
             sendMessage(botToken, chatId, "Произошла ошибка при получении статистики")
         }
     }
-
 }

@@ -101,7 +101,6 @@ class TelegramBotService(private val botToken: String, private val dictionary: D
             val statistics = getStatistics()
             val message = """
             | <b>Статистика</b>:
-            |
             |Выучено: ${statistics.learnedWords} из ${statistics.wordsInFile} слов
             |Прогресс: ${statistics.progressPercentage}%
         """.trimMargin()

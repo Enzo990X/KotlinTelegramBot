@@ -1,12 +1,12 @@
 package trainer.model
 
-import ktb.console.SETTINGS_FILE
-import ktb.trainer.DEFAULT_NUMBER_OF_TRAINS
-import ktb.trainer.DEFAULT_FILTER
-import ktb.console.MENU_ONE
-import ktb.console.MENU_TWO
-import ktb.console.MENU_ZERO
-import ktb.console.readInput
+import console.SETTINGS_FILE
+import trainer.DEFAULT_NUMBER_OF_TRAINS
+import trainer.DEFAULT_FILTER
+import console.MENU_ONE
+import console.MENU_TWO
+import console.MENU_ZERO
+import console.readInput
 import java.io.File
 
 class Settings(

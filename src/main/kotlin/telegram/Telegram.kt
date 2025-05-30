@@ -1,6 +1,6 @@
-package Telegram
+package telegram
 
-import ktb.trainer.LearnWordsTrainer
+import trainer.LearnWordsTrainer
 import trainer.model.Dictionary
 
 fun main(args: Array<String>) {

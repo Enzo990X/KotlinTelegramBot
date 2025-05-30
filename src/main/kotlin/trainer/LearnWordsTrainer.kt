@@ -1,4 +1,4 @@
-package ktb.trainer
+package trainer
 
 import trainer.model.Dictionary
 import trainer.model.Question

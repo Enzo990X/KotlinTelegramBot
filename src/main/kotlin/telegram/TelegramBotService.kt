@@ -1,7 +1,7 @@
-package Telegram
+package telegram
 
-import ktb.trainer.NUMBER_OF_CORRECT_ANSWERS
-import ktb.trainer.PERCENTAGE
+import trainer.NUMBER_OF_CORRECT_ANSWERS
+import trainer.PERCENTAGE
 import trainer.model.Statistics
 import trainer.model.Word
 import trainer.model.Dictionary
@@ -9,7 +9,6 @@ import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
-import java.time.Duration
 
 class TelegramBotService(private val botToken: String, private val dictionary: Dictionary) {
 

@@ -1,9 +1,9 @@
 package trainer.model
 
-import ktb.console.WORDS_FILE
-import ktb.trainer.COLLOCATION_SIZE
-import ktb.trainer.EXPRESSION_SIZE
-import ktb.trainer.WORD_SIZE
+import console.WORDS_FILE
+import trainer.COLLOCATION_SIZE
+import trainer.EXPRESSION_SIZE
+import trainer.WORD_SIZE
 import java.io.File
 import java.lang.IllegalStateException
 

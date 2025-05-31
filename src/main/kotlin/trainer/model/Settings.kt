@@ -74,7 +74,7 @@ class Settings(
         println("Настройки сохранены.\n")
     }
 
-    private fun saveSettings() {
+    fun saveSettings() {
 
         val settingsFile = File(SETTINGS_FILE)
         settingsFile.writeText("numberOfIterations=$numberOfIterations\nfilter=$filter")

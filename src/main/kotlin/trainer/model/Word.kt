@@ -2,7 +2,7 @@ package trainer.model
 
 data class Word(
     val original: String,
-    val translations: String,
+    val translation: String,
     val type: String,
     var correctAnswersCount: Short = START_CORRECT_ANSWERS_COUNT,
     var usageCount: Short = START_USAGE_COUNT

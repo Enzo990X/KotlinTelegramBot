@@ -19,7 +19,7 @@ class Dictionary {
         do {
             val newWord = createNewWord()
             wordsFile.appendText(
-                "${newWord.original}|${newWord.translations}|${newWord.type}|" +
+                "${newWord.original}|${newWord.translation}|${newWord.type}|" +
                         "${newWord.correctAnswersCount}|${newWord.usageCount}\n",
                 Charsets.UTF_8
             )
@@ -145,7 +145,7 @@ class Dictionary {
         wordsFile.writeText("")
 
         dictionary.forEach { word ->
-            wordsFile.appendText("${word.original}|${word.translations}|${word.type}|" +
+            wordsFile.appendText("${word.original}|${word.translation}|${word.type}|" +
                     "${word.correctAnswersCount}|${word.usageCount}\n")
         }
     }

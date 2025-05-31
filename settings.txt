@@ -1,2 +1,2 @@
-numberOfIterations=7
+numberOfIterations=9
 filter=слова

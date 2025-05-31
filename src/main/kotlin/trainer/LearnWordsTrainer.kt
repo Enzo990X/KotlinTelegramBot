@@ -96,7 +96,7 @@ const val DEFAULT_NUMBER_OF_TRAINS = 4
 const val DEFAULT_FILTER = "всё"
 
 const val PERCENTAGE = 100
-const val NUMBER_OF_CORRECT_ANSWERS = 3.toShort()
+const val NUMBER_OF_CORRECT_ANSWERS = 30.toShort()
 const val NUMBER_OF_INCORRECT_ANSWERS = 3
 
 const val WORD_SIZE = 1

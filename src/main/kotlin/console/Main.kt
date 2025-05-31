@@ -67,7 +67,7 @@ fun learnWords(trainer: LearnWordsTrainer) {
         if (isCorrect) {
             println("Правильно!\n")
         } else {
-            println("Неправильно. Правильный ответ: ${question.learningWord.translations}.\n")
+            println("Неправильно. Правильный ответ: ${question.learningWord.translation}.\n")
         }
     }
 
@@ -107,7 +107,7 @@ fun Question.asConsoleString(): String {
     stringBuilder.append("Выберите перевод слова ${this.learningWord.original}:\n")
 
     this.translationsToPick.forEachIndexed { index, word ->
-        stringBuilder.append("${index + INDEX_UPDATE} - ${word.translations}\n")
+        stringBuilder.append("${index + INDEX_UPDATE} - ${word.translation}\n")
     }
     stringBuilder.append("0 - выход в меню")
 

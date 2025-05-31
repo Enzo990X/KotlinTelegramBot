@@ -1,7 +1,7 @@
-package ktb.console
+package console
 
 import trainer.model.Dictionary
-import ktb.trainer.LearnWordsTrainer
+import trainer.LearnWordsTrainer
 import trainer.model.Question
 
 fun main() {

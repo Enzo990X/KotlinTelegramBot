@@ -79,9 +79,8 @@ fun main(args: Array<String>) {
 
             data == LEARN_WORDS -> train(chatId)
             data == ADD_WORD -> addWordToFileWithBot(chatId)
-            data == TYPE_WORD || data == TYPE_WORD_PAIR || data == TYPE_EXPRESSION || data == TYPE_ALL -> {
+            data == TYPE_WORD || data == TYPE_WORD_PAIR || data == TYPE_EXPRESSION || data == TYPE_ALL ->
                 service.handleWordTypeSelection(chatId, data)
-            }
 
             data == STATS -> service.showStats(chatId, trainer.getStatistics())
             data == SETTINGS -> {
@@ -96,7 +95,7 @@ fun main(args: Array<String>) {
 
             messageText.matches(Regex("\\d+")) && userIterationSettingState[chatId] == true -> {
                 service.handleIterationsSettingCallback(chatId, messageText, trainer)
-                userIterationSettingState[chatId] = false  // Reset the state after handling
+                userIterationSettingState[chatId] = false
             }
 
             data == CHANGE_TYPE_OF_TRAIN -> service.sendFilterSettingMenu(chatId, trainer)
@@ -112,7 +111,6 @@ fun main(args: Array<String>) {
                         service.handleTranslation(chatId, messageText)
                     }
                     else -> {
-                        // Handle other commands or unknown input
                         if (messageText.startsWith("/")) {
                             service.sendMessage(chatId, "Неизвестная команда. Используйте кнопки меню.")
                         }

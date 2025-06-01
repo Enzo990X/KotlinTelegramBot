@@ -90,9 +90,7 @@ class TelegramBotService(
     }
 
     fun checkNextQuestionAndSend(
-        trainer: LearnWordsTrainer, chatId: String, trainingState: TrainState,
-        onComplete: () -> Unit = {},
-    ) {
+        trainer: LearnWordsTrainer, chatId: String, trainingState: TrainState, onComplete: () -> Unit = {}) {
 
         if (trainingState.questionsRemaining <= NO_QUESTIONS_LEFT) {
             onComplete()
@@ -121,7 +119,6 @@ class TelegramBotService(
                     "[${row.joinToString(",")}]"
                 }
 
-
             val sendMessageBody = """
         {
             "chat_id": "$chatId",
@@ -146,7 +143,6 @@ class TelegramBotService(
             println("Failed to send question: ${e.message}")
             onComplete()
         }
-
     }
 
     fun sendTypeOfWordMenu(chatId: String) {
@@ -413,6 +409,7 @@ class TelegramBotService(
     }
 
     private fun sendApiRequest(url: String, requestBody: String) {
+
         try {
             val request = HttpRequest.newBuilder()
                 .uri(URI.create(url))

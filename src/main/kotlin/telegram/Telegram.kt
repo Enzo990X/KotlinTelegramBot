@@ -1,7 +1,9 @@
 package telegram
 
+import console.WORDS_FILE
 import trainer.LearnWordsTrainer
 import trainer.model.Dictionary
+import java.io.File
 
 fun main(args: Array<String>) {
 
@@ -21,7 +23,36 @@ fun main(args: Array<String>) {
 
     val service = TelegramBotService(args[FIRST_INDEX])
     val trainer = LearnWordsTrainer(dictionary)
-    val activeTrainings = mutableMapOf<String, TrainingState>()
+    val activeTrain = mutableMapOf<String, TrainState>()
+    val userIterationSettingState = mutableMapOf<String, Boolean>()
+
+    fun completeTraining(chatId: String) {
+        activeTrain.remove(chatId)
+        service.sendMessage(chatId, "Тренировка завершена!")
+        service.sendMenu(chatId)
+    }
+
+    fun train(chatId: String) {
+        val numberOfWordsToTrain = trainer.settings.numberOfIterations
+        trainer.resetUsage()
+
+        val trainState = TrainState(chatId, numberOfWordsToTrain)
+        activeTrain[chatId] = trainState
+
+        service.checkNextQuestionAndSend(trainer, chatId, trainState) { completeTraining(chatId) }
+    }
+
+    fun addWordToFileWithBot(chatId: String) {
+
+        val wordsFile = File(WORDS_FILE)
+
+        if (!wordsFile.exists()) {
+            wordsFile.createNewFile()
+        }
+
+        service.sendMessage(chatId, "Пополнение словаря")
+        service.sendTypeOfWordMenu(chatId)
+    }
 
     while (true) {
         Thread.sleep(SLEEP)
@@ -32,41 +63,62 @@ fun main(args: Array<String>) {
 
         updateId = updateIdString + INCREMENT
 
-        val messageText = messageTextRegex.find(updates)?.groupValues?.get(SECOND_INDEX)
+        val messageText = messageTextRegex.find(updates)?.groupValues?.get(SECOND_INDEX) ?: ""
 
         val chatIdMatch = chatIdRegex.find(updates)
         val chatId = chatIdMatch?.groupValues?.get(SECOND_INDEX) ?: continue
         val data = dataRegex.find(updates)?.groupValues?.get(SECOND_INDEX)?.lowercase()
 
-
-        fun startTrainer(chatId: String) {
-            val numberOfWordsToTrain = trainer.settings.numberOfIterations
-            trainer.resetUsage()
-
-            activeTrainings[chatId] = TrainingState(chatId, numberOfWordsToTrain)
-
-            service.checkNextQuestionAndSend(trainer, chatId) {
-
-                activeTrainings.remove(chatId)
-                service.sendMessage(chatId, "Тренировка завершена!")
-                service.sendMenu(chatId)
-            }
+        activeTrain[chatId]?.let updateId@{ trainState ->
+            service.checkNextQuestionAndSend(trainer, chatId, trainState) { completeTraining(chatId) }
+            return@updateId
         }
 
-
         when {
-            data == LEARN_WORDS -> startTrainer(chatId)
-            data == ADD_WORD -> service.sendMessage(chatId, "Add word")
+            data == START || messageText == START -> service.sendMenu(chatId)
+
+            data == LEARN_WORDS -> train(chatId)
+            data == ADD_WORD -> addWordToFileWithBot(chatId)
+            data == TYPE_WORD || data == TYPE_WORD_PAIR || data == TYPE_EXPRESSION || data == TYPE_ALL -> {
+                service.handleWordTypeSelection(chatId, data)
+            }
+
             data == STATS -> service.showStats(chatId, trainer.getStatistics())
-            data == SETTINGS -> service.sendSettingsMenu(chatId)
-            data == CHANGE_NUMBER_OF_ITERATIONS -> service.sendIterationsSettingMenu(chatId, trainer)
-            messageText?.matches(Regex("\\d+")) == true ->
+            data == SETTINGS -> {
+                userIterationSettingState[chatId] = false
+                service.sendSettingsMenu(chatId)
+            }
+
+            data == CHANGE_NUMBER_OF_ITERATIONS -> {
+                userIterationSettingState[chatId] = true
+                service.sendIterationsSettingMenu(chatId, trainer)
+            }
+
+            messageText.matches(Regex("\\d+")) && userIterationSettingState[chatId] == true -> {
                 service.handleIterationsSettingCallback(chatId, messageText, trainer)
+                userIterationSettingState[chatId] = false  // Reset the state after handling
+            }
 
             data == CHANGE_TYPE_OF_TRAIN -> service.sendFilterSettingMenu(chatId, trainer)
             data == FILTER_WORD || data == FILTER_WORD_PAIR || data == FILTER_EXPRESSION || data == FILTER_ALL ->
                 service.handleFilterSettingCallback(chatId, data, trainer)
-            data == START || messageText == START -> service.sendMenu(chatId)
+
+            messageText.isNotBlank() -> {
+                when (userStates[chatId]) {
+                    AddWordState.AWAITING_ORIGINAL -> {
+                        service.handleOriginalWord(chatId, messageText)
+                    }
+                    AddWordState.AWAITING_TRANSLATION -> {
+                        service.handleTranslation(chatId, messageText)
+                    }
+                    else -> {
+                        // Handle other commands or unknown input
+                        if (messageText.startsWith("/")) {
+                            service.sendMessage(chatId, "Неизвестная команда. Используйте кнопки меню.")
+                        }
+                    }
+                }
+            }
         }
     }
 }

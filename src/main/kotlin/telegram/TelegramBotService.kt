@@ -90,10 +90,13 @@ class TelegramBotService(
     }
 
     fun checkNextQuestionAndSend(
-        trainer: LearnWordsTrainer, chatId: String, trainingState: TrainState, onComplete: () -> Unit = {}) {
-
+        trainer: LearnWordsTrainer,
+        chatId: String,
+        trainingState: TrainState,
+        onComplete: () -> Unit = {}
+    ) {
         if (trainingState.questionsRemaining <= NO_QUESTIONS_LEFT) {
-            onComplete()
+            trainingState.completeTraining()
             return
         }
 
@@ -102,18 +105,17 @@ class TelegramBotService(
 
         if (question == null) {
             sendMessage(chatId, "Неизученный материал отсутствует. Добавьте новый.")
-            onComplete()
+            trainingState.completeTraining()
             return
         }
 
-        trainingState.currentQuestion = question
-        trainingState.questionsRemaining--
+        trainingState.startNewQuestion(question, onComplete)
 
         try {
             val urlSendMessage = "$API_URL$botToken/sendMessage"
 
             val keyboardButtons = question.translationsToPick.mapIndexed { index, word ->
-                """{"text": "${word.translation}", "callback_data": "$index"}"""
+                """{"text": "${word.translation}", "callback_data": "$CALLBACK_DATA_ANSWER_PREFIX$index"}"""
             }.chunked(COLUMNS)
                 .joinToString(",\n") { row ->
                     "[${row.joinToString(",")}]"
@@ -141,7 +143,47 @@ class TelegramBotService(
 
         } catch (e: Exception) {
             println("Failed to send question: ${e.message}")
-            onComplete()
+            trainingState.completeTraining()
+        }
+    }
+
+    fun handleAnswer(
+        chatId: String,
+        callbackData: String,
+        trainer: LearnWordsTrainer,
+        trainingState: TrainState,
+        onComplete: () -> Unit = {}
+    ) {
+        if (!trainingState.isWaitingForAnswer) {
+            return
+        }
+
+        val answerIndex = callbackData.removePrefix(CALLBACK_DATA_ANSWER_PREFIX).toIntOrNull()
+        val currentQuestion = trainingState.currentQuestion
+
+        if (currentQuestion == null || answerIndex == null) {
+            sendMessage(chatId, "Произошла ошибка. Пожалуйста, начните тренировку заново.")
+            trainingState.completeTraining()
+            return
+        }
+
+        val isCorrect = trainer.checkAnswer(answerIndex)
+        trainingState.handleAnswerProcessed()
+
+        val correctAnswer = currentQuestion.learningWord.translation
+
+        val message = if (isCorrect) {
+            "Правильно!"
+        } else {
+            "Неверно. Правильный ответ: \"$correctAnswer\"."
+        }
+
+        sendMessage(chatId, message)
+
+        if (trainingState.questionsRemaining > NO_QUESTIONS_LEFT) {
+            checkNextQuestionAndSend(trainer, chatId, trainingState, onComplete)
+        } else {
+            trainingState.completeTraining()
         }
     }
 
@@ -367,7 +409,7 @@ class TelegramBotService(
                     ],
                     [
                     {"text": "Словосочетания", "callback_data": "$FILTER_WORD_PAIR"},
-                    {"text": "Всё", "callback_data": "$FILTER_ALL$"}
+                    {"text": "Всё", "callback_data": "$FILTER_ALL"}
                     ],
                     [{"text": "Назад", "callback_data": "$SETTINGS"}]
                 ]

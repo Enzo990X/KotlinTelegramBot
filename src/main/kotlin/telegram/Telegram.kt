@@ -39,9 +39,10 @@ fun main(args: Array<String>) {
         val trainState = TrainState(chatId, numberOfWordsToTrain)
         activeTrain[chatId] = trainState
 
-        service.checkNextQuestionAndSend(trainer, chatId, trainState) { completeTraining(chatId) }
+        service.checkNextQuestionAndSend(trainer, chatId, trainState) {
+            completeTraining(chatId)
+        }
     }
-
     fun addWordToFileWithBot(chatId: String) {
 
         val wordsFile = File(WORDS_FILE)
@@ -69,15 +70,17 @@ fun main(args: Array<String>) {
         val chatId = chatIdMatch?.groupValues?.get(SECOND_INDEX) ?: continue
         val data = dataRegex.find(updates)?.groupValues?.get(SECOND_INDEX)?.lowercase()
 
-        activeTrain[chatId]?.let updateId@{ trainState ->
-            service.checkNextQuestionAndSend(trainer, chatId, trainState) { completeTraining(chatId) }
-            return@updateId
-        }
-
         when {
             data == START || messageText == START -> service.sendMenu(chatId)
 
             data == LEARN_WORDS -> train(chatId)
+
+            data?.startsWith(CALLBACK_DATA_ANSWER_PREFIX) == true -> {
+                activeTrain[chatId]?.let { trainState ->
+                    service.handleAnswer(chatId, data, trainer, trainState) { completeTraining(chatId) }
+                } ?: service.sendMessage(chatId, "Тренировка не начата. Начните новую тренировку.")
+            }
+
             data == ADD_WORD -> addWordToFileWithBot(chatId)
             data == TYPE_WORD || data == TYPE_WORD_PAIR || data == TYPE_EXPRESSION || data == TYPE_ALL ->
                 service.handleWordTypeSelection(chatId, data)

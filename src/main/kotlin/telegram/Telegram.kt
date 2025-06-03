@@ -16,7 +16,7 @@ fun main(args: Array<String>) {
 
     val updateIdRegex = Regex("update_id\":(\\d+)")
     val messageTextRegex = Regex("\"text\":\"([^\"]+)\"")
-    val chatIdRegex = Regex("chat\":\\{\"id\":(\\d+)")
+    val chatIdRegex = Regex("chat\":\\{\"id\":(-*\\d+)")
     val dataRegex = Regex("\"data\":\"([^\"]+)\"")
 
     var updateId = START_UPDATE_ID

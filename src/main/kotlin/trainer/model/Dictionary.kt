@@ -19,7 +19,7 @@ class Dictionary {
         do {
             val newWord = createNewWord()
             wordsFile.appendText(
-                "${newWord.original}|${newWord.translations}|${newWord.type}|" +
+                "${newWord.original}|${newWord.translation}|${newWord.type}|" +
                         "${newWord.correctAnswersCount}|${newWord.usageCount}\n",
                 Charsets.UTF_8
             )
@@ -102,8 +102,7 @@ class Dictionary {
         return "$latinInput|$cyrillicInput|$typeInput"
     }
 
-
-    private fun inputCheckForType(typeInput: String, latinInput: String): Boolean {
+    fun inputCheckForType(typeInput: String, latinInput: String): Boolean {
 
         val wordCount = latinInput.split(" ").size
 
@@ -115,27 +114,30 @@ class Dictionary {
         }
     }
 
-    private fun isWordInDictionary(latinInput: String): Boolean {
+    fun isWordInDictionary(latinInput: String): Boolean {
 
         val currentDictionary = loadDictionary()
         return currentDictionary.any { it.original.equals(latinInput, ignoreCase = true) }
     }
 
-    private fun checkLatinWords(latinInput: String): Boolean {
+    fun checkLatinWords(latinInput: String): Boolean {
 
         val inputSplit = latinInput.split(" ")
         return inputSplit[FIRST_INDEX].all { char ->
             (char in FIRST_EN_SMALL_CHAR..LAST_EN_SMALL_CHAR) ||
-                    (char in FIRST_EN_BIG_CHAR..LAST_EN_BIG_CHAR)
+                    (char in FIRST_EN_BIG_CHAR..LAST_EN_BIG_CHAR) || char == DASH
         }
     }
 
-    private fun checkCyrillicWords(cyrillicInput: String): Boolean {
+    fun checkCyrillicWords(cyrillicInput: String): Boolean {
 
         val inputSplit = cyrillicInput.split(" ")
-        return inputSplit[FIRST_INDEX].all { char ->
-            (char in FIRST_RU_SMALL_CHAR..LAST_RU_SMALL_CHAR) ||
-                    (char in FIRST_RU_BIG_CHAR..LAST_RU_BIG_CHAR)
+        return inputSplit.all { word ->
+            word.all { char ->
+                (char in FIRST_RU_SMALL_CHAR..LAST_RU_SMALL_CHAR) ||
+                        (char in FIRST_RU_BIG_CHAR..LAST_RU_BIG_CHAR) ||
+                        char == YO || char == CAPITAL_YO || char == DASH
+            }
         }
     }
 
@@ -145,8 +147,10 @@ class Dictionary {
         wordsFile.writeText("")
 
         dictionary.forEach { word ->
-            wordsFile.appendText("${word.original}|${word.translations}|${word.type}|" +
-                    "${word.correctAnswersCount}|${word.usageCount}\n")
+            wordsFile.appendText(
+                "${word.original}|${word.translation}|${word.type}|" +
+                        "${word.correctAnswersCount}|${word.usageCount}\n"
+            )
         }
     }
 
@@ -180,6 +184,30 @@ class Dictionary {
 
         return dictionary
     }
+
+    fun addWordToDictionaryByBot(word: Word) {
+        val wordsFile = File(WORDS_FILE)
+        if (!wordsFile.exists()) {
+            wordsFile.createNewFile()
+        }
+
+        wordsFile.appendText(
+            "${word.original}|${word.translation}|${word.type}|${word.correctAnswersCount}|${word.usageCount}\n",
+            Charsets.UTF_8
+        )
+    }
+
+    fun isWordValid(original: String, type: String): Boolean {
+        if (original.isBlank()) return false
+        if (!Dictionary().checkLatinWords(original)) return false
+        if (!Dictionary().inputCheckForType(type, original)) return false
+        return !Dictionary().isWordInDictionary(original)
+    }
+
+    fun isTranslationValid(translation: String): Boolean {
+        if (translation.isBlank()) return false
+        return Dictionary().checkCyrillicWords(translation)
+    }
 }
 
 const val FIRST_EN_SMALL_CHAR = 'a'
@@ -191,6 +219,9 @@ const val FIRST_RU_SMALL_CHAR = 'а'
 const val LAST_RU_SMALL_CHAR = 'я'
 const val FIRST_RU_BIG_CHAR = 'А'
 const val LAST_RU_BIG_CHAR = 'Я'
+const val YO = 'ё'
+const val CAPITAL_YO = 'Ё'
+const val DASH = '-'
 
 const val FIRST_INDEX = 0
 const val SECOND_INDEX = 1

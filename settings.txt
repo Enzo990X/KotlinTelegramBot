@@ -1,2 +1,2 @@
-numberOfIterations=7
-filter=слова
+numberOfIterations=3
+filter=словосочетания

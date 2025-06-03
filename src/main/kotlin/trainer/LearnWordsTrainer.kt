@@ -3,8 +3,9 @@ package trainer
 import trainer.model.Dictionary
 import trainer.model.Question
 import trainer.model.Settings
-import trainer.model.Statistics
 import trainer.model.Word
+import trainer.model.Statistics
+import trainer.model.START_USAGE_COUNT
 
 class LearnWordsTrainer(
     private val dictionary: Dictionary,
@@ -28,7 +29,7 @@ class LearnWordsTrainer(
     fun resetUsage() {
 
         currentDictionary.forEach { word ->
-            word.usageCount = 0
+            word.usageCount = START_USAGE_COUNT
         }
 
         dictionary.saveDictionary(currentDictionary)
@@ -96,7 +97,7 @@ const val DEFAULT_NUMBER_OF_TRAINS = 4
 const val DEFAULT_FILTER = "всё"
 
 const val PERCENTAGE = 100
-const val NUMBER_OF_CORRECT_ANSWERS = 3.toShort()
+const val NUMBER_OF_CORRECT_ANSWERS = 30.toShort()
 const val NUMBER_OF_INCORRECT_ANSWERS = 3
 
 const val WORD_SIZE = 1

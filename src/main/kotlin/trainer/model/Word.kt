@@ -1,5 +1,8 @@
 package trainer.model
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 data class Word(
     var original: String,
     var translation: String,

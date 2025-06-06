@@ -3,7 +3,7 @@ package telegram
 import trainer.model.Question
 
 data class TrainState(
-    val chatId: Long?,
+    var chatId: Long?,
     var questionsRemaining: Int,
     var currentQuestion: Question? = null,
     var isWaitingForAnswer: Boolean = false,

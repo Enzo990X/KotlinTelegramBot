@@ -18,6 +18,8 @@ class TelegramBotService(
 ) {
 
     private val client: HttpClient = HttpClient.newBuilder().build()
+    private val trainerManager = TrainerManager()
+
 
     companion object {
         private const val API_URL = "https://api.telegram.org/bot"
@@ -226,16 +228,16 @@ class TelegramBotService(
         sendMessage(json, chatId, getWordTypeRequirements(wordType))
     }
 
-    fun handleOriginalWord(json: Json, chatId: Long, text: String): Boolean {
+    fun handleOriginalWord(json: Json, chatId: Long, text: String, dictionary: Dictionary): Boolean {
 
         val wordData = userWordData[chatId] ?: return false
 
-        if (Dictionary().isWordInDictionary(text)) {
+        if (dictionary.isWordInDictionary(text)) {
             sendMessage(json, chatId, "Это слово уже есть в словаре. Пожалуйста, введите другое слово.")
             return false
         }
 
-        if (!Dictionary().isWordValid(text, wordData.type)) {
+        if (!dictionary.isWordValid(word, type, dictionary)) {
             sendMessage(json, chatId, "Некорректный формат. ${getWordTypeRequirements(wordData.type)}")
             return false
         }

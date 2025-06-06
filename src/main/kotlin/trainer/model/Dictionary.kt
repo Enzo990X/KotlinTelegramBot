@@ -7,7 +7,8 @@ import trainer.WORD_SIZE
 import java.io.File
 import java.lang.IllegalStateException
 
-class Dictionary {
+class Dictionary (private val chatId: Long) {
+    private val userWordsFile = File("data/user_${chatId}_words.txt")
 
     fun addWordToDictionary() {
         val wordsFile = File(WORDS_FILE)
@@ -197,11 +198,11 @@ class Dictionary {
         )
     }
 
-    fun isWordValid(original: String, type: String): Boolean {
+    fun isWordValid(original: String, type: String, dictionary: Dictionary): Boolean {
         if (original.isBlank()) return false
-        if (!Dictionary().checkLatinWords(original)) return false
-        if (!Dictionary().inputCheckForType(type, original)) return false
-        return !Dictionary().isWordInDictionary(original)
+        if (!dictionary.checkLatinWords(original)) return false
+        if (!dictionary.inputCheckForType(type, original)) return false
+        return !dictionary.isWordInDictionary(original)
     }
 
     fun isTranslationValid(translation: String): Boolean {

@@ -1,5 +1,6 @@
 package telegram
 
+import kotlinx.serialization.json.Json
 import trainer.LearnWordsTrainer
 import trainer.model.Dictionary
 import trainer.model.Word
@@ -11,6 +12,7 @@ import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 
+
 class TelegramBotService(
     private val botToken: String,
 ) {
@@ -21,34 +23,33 @@ class TelegramBotService(
         private const val API_URL = "https://api.telegram.org/bot"
     }
 
-    fun sendMenu(chatId: String) {
+    fun sendMenu(json: Json, chatId: Long) {
 
         try {
-
             val urlSendMessage = "$API_URL$botToken/sendMessage"
-            val sendMessageBody = """
-        {
-            "chat_id": "$chatId",
-            "text": "Меню",
-            "reply_markup": {
-                "inline_keyboard": [
-                    [
-                        {"text": "Учить слова", "callback_data": "$LEARN_WORDS"},
-                        {"text": "Пополнить словарь", "callback_data": "$ADD_WORD"}
-                    ],
-                    [
-                        {"text": "Статистика", "callback_data": "$STATS"},
-                        {"text": "Настройки", "callback_data": "$SETTINGS"}
-                    ]
-                ]
-            }
-        }
-        """.trimIndent()
+
+            val requestBody = SendMessageRequest(
+                chatId, "Меню",
+                ReplyMarkup(
+                    listOf(
+                        listOf(
+                            InlineKeyboard(LEARN_WORDS, "Учить слова"),
+                            InlineKeyboard(ADD_WORD, "Пополнить словарь")
+                        ),
+                        listOf(
+                            InlineKeyboard(STATS, "Статистика"),
+                            InlineKeyboard(SETTINGS, "Настройки")
+                        )
+                    )
+                )
+            )
+
+            val requestBodyString = json.encodeToString(requestBody)
 
             val request = HttpRequest.newBuilder()
                 .uri(URI.create(urlSendMessage))
                 .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(sendMessageBody))
+                .POST(HttpRequest.BodyPublishers.ofString(requestBodyString))
                 .build()
 
             client.send(request, HttpResponse.BodyHandlers.ofString())
@@ -57,14 +58,21 @@ class TelegramBotService(
         }
     }
 
-    fun sendMessage(chatId: String, message: String) {
+    fun sendMessage(json: Json, chatId: Long, message: String) {
 
         try {
             val encodedMessage = java.net.URLEncoder.encode(message, "UTF-8")
             val urlSendMessage =
                 "$API_URL$botToken/sendMessage?chat_id=$chatId&text=$encodedMessage"
+
+            val requestBody = SendMessageRequest(chatId, message)
+
+            val requestBodyString = json.encodeToString(requestBody)
+
             val request = HttpRequest.newBuilder()
                 .uri(URI.create(urlSendMessage))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(requestBodyString))
                 .build()
 
             client.send(request, HttpResponse.BodyHandlers.ofString())
@@ -73,7 +81,7 @@ class TelegramBotService(
         }
     }
 
-    fun getUpdates(updateId: Int): String {
+    fun getUpdates(updateId: Long): String {
 
         return try {
             val urlGetUpdates = "$API_URL$botToken/getUpdates?offset=$updateId&timeout=30"
@@ -89,92 +97,121 @@ class TelegramBotService(
         }
     }
 
-    fun checkNextQuestionAndSend(
-        trainer: LearnWordsTrainer, chatId: String, trainingState: TrainState, onComplete: () -> Unit = {}) {
-
-        if (trainingState.questionsRemaining <= NO_QUESTIONS_LEFT) {
-            onComplete()
+    fun checkNextQuestionAndSend(json: Json, chatId: Long, context: TrainContext) {
+        if (context.trainingState.questionsRemaining <= NO_QUESTIONS_LEFT) {
+            context.trainingState.completeTraining()
             return
         }
 
-        val question = trainer.getNextQuestion()
-        trainer.question = question
+        val question = context.trainer.getNextQuestion()
+        context.trainer.question = question
 
         if (question == null) {
-            sendMessage(chatId, "Неизученный материал отсутствует. Добавьте новый.")
-            onComplete()
+            sendMessage(json, chatId, "Неизученный материал отсутствует. Добавьте новый.")
+            context.trainingState.completeTraining()
             return
         }
 
-        trainingState.currentQuestion = question
-        trainingState.questionsRemaining--
+        context.trainingState.startNewQuestion(question, context.onComplete)
 
         try {
             val urlSendMessage = "$API_URL$botToken/sendMessage"
 
-            val keyboardButtons = question.translationsToPick.mapIndexed { index, word ->
-                """{"text": "${word.translation}", "callback_data": "$index"}"""
-            }.chunked(COLUMNS)
-                .joinToString(",\n") { row ->
-                    "[${row.joinToString(",")}]"
-                }
+            val requestBody = SendMessageRequest(
+                chatId, "Выберите перевод для ${question.learningWord.original}",
+                ReplyMarkup(
+                    question.translationsToPick.mapIndexed { index, word ->
+                        InlineKeyboard(CALLBACK_DATA_ANSWER_PREFIX + index, word.translation)
+                    }.chunked(COLUMNS)
+                )
+            )
 
-            val sendMessageBody = """
-        {
-            "chat_id": "$chatId",
-            "text": "Выберите перевод для ${question.learningWord.original}",
-            "reply_markup": {
-                "inline_keyboard": [
-                    $keyboardButtons
-                ]
-            }
-        }
-        """.trimIndent()
+            val requestBodyString = json.encodeToString(requestBody)
 
             val request = HttpRequest.newBuilder()
                 .uri(URI.create(urlSendMessage))
                 .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(sendMessageBody))
+                .POST(HttpRequest.BodyPublishers.ofString(requestBodyString))
                 .build()
 
             client.send(request, HttpResponse.BodyHandlers.ofString())
 
         } catch (e: Exception) {
             println("Failed to send question: ${e.message}")
-            onComplete()
+            context.trainingState.completeTraining()
         }
     }
 
-    fun sendTypeOfWordMenu(chatId: String) {
+    fun handleAnswer(chatId: Long, callbackData: String, context: TrainContext) {
 
-        val urlSendMessage = "$API_URL$botToken/sendMessage"
+        with(context) {
+            if (!trainingState.isWaitingForAnswer) {
+                return
+            }
 
-        val keyboardButtons = """
-        [
-            [{"text": "Слово (1 слово)", "callback_data": "$TYPE_WORD"}],
-            [{"text": "Словосочетание (2 слова)", "callback_data": "$TYPE_WORD_PAIR"}],
-            [{"text": "Выражение (3+ слова)", "callback_data": "$TYPE_EXPRESSION"}],
-            [{"text": "Вернуться в меню", "callback_data": "$START"}]
-                ]
+            val answerIndex = callbackData.removePrefix(CALLBACK_DATA_ANSWER_PREFIX).toIntOrNull()
+            val currentQuestion = trainingState.currentQuestion
+
+            if (currentQuestion == null || answerIndex == null) {
+                sendMessage(json, chatId, "Произошла ошибка. Пожалуйста, начните тренировку заново.")
+                trainingState.completeTraining()
+                return
+            }
+
+            val isCorrect = trainer.checkAnswer(answerIndex)
+            trainingState.handleAnswerProcessed()
+
+            val correctAnswer = currentQuestion.learningWord.translation
+            val message = if (isCorrect) {
+                "Правильно!"
+            } else {
+                "Неверно. Правильный ответ: \"$correctAnswer\"."
+            }
+
+            sendMessage(json, chatId, message)
+
+            if (trainingState.questionsRemaining > NO_QUESTIONS_LEFT) {
+                checkNextQuestionAndSend(json, chatId, context)
+            } else {
+                trainingState.completeTraining()
             }
         }
-        """.trimIndent()
-
-        val sendMessageBody = """
-        {
-            "chat_id": "$chatId",
-            "text": "Выберите тип слова для добавления:",
-            "reply_markup": {
-                "inline_keyboard": $keyboardButtons
-            }
-        }
-        """.trimIndent()
-
-        sendApiRequest(urlSendMessage, sendMessageBody)
-        userStates[chatId] = AddWordState.AWAITING_WORD_TYPE
     }
 
-    fun handleWordTypeSelection(chatId: String, type: String) {
+    fun sendTypeOfWordMenu(json: Json, chatId: Long) {
+
+        try {
+            val urlSendMessage = "$API_URL$botToken/sendMessage"
+
+            val requestBody = SendMessageRequest(
+                chatId,
+                "Выберите тип слова для добавления:",
+                ReplyMarkup(
+                    listOf(
+                        listOf(InlineKeyboard(TYPE_WORD, "Слово (1 слово)")),
+                        listOf(InlineKeyboard(TYPE_WORD_PAIR, "Словосочетание (2 слова)")),
+                        listOf(InlineKeyboard(TYPE_EXPRESSION, "Выражение (3+ слова)")),
+                        listOf(InlineKeyboard(START, "Вернуться в меню"))
+                    )
+                )
+            )
+
+            val requestBodyString = json.encodeToString(requestBody)
+
+            val request = HttpRequest.newBuilder()
+                .uri(URI.create(urlSendMessage))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(requestBodyString))
+                .build()
+
+            client.send(request, HttpResponse.BodyHandlers.ofString())
+            userStates[chatId] = AddWordState.AWAITING_WORD_TYPE
+        } catch (e: Exception) {
+            println("Failed to send word type menu: ${e.message}")
+        }
+    }
+
+    fun handleWordTypeSelection(json: Json, chatId: Long, type: String) {
 
         val wordType = when (type) {
             TYPE_WORD -> "слово"
@@ -186,25 +223,30 @@ class TelegramBotService(
         userWordData[chatId] = Word("", "", wordType)
         userStates[chatId] = AddWordState.AWAITING_ORIGINAL
 
-        sendMessage(chatId, getWordTypeRequirements(wordType))
+        sendMessage(json, chatId, getWordTypeRequirements(wordType))
     }
 
-    fun handleOriginalWord(chatId: String, text: String): Boolean {
+    fun handleOriginalWord(json: Json, chatId: Long, text: String): Boolean {
 
         val wordData = userWordData[chatId] ?: return false
 
+        if (Dictionary().isWordInDictionary(text)) {
+            sendMessage(json, chatId, "Это слово уже есть в словаре. Пожалуйста, введите другое слово.")
+            return false
+        }
+
         if (!Dictionary().isWordValid(text, wordData.type)) {
-            sendMessage(chatId, "Некорректный формат. ${getWordTypeRequirements(wordData.type)}")
+            sendMessage(json, chatId, "Некорректный формат. ${getWordTypeRequirements(wordData.type)}")
             return false
         }
 
         wordData.original = text.lowercase()
         userStates[chatId] = AddWordState.AWAITING_TRANSLATION
-        sendMessage(chatId, "Введите перевод на русский:")
+        sendMessage(json, chatId, "Введите перевод на русский:")
         return true
     }
 
-    fun handleTranslation(chatId: String, text: String): Boolean {
+    fun handleTranslation(json: Json, chatId: Long, text: String): Boolean {
 
         val wordData = userWordData[chatId] ?: return false
 
@@ -214,7 +256,7 @@ class TelegramBotService(
         }.trim()
 
         if (!Dictionary().isTranslationValid(cleanText)) {
-            sendMessage(chatId, "Некорректный перевод. Используйте только кириллицу. Введите перевод:")
+            sendMessage(json, chatId, "Некорректный перевод. Используйте только кириллицу. Введите перевод:")
             return false
         }
 
@@ -225,75 +267,75 @@ class TelegramBotService(
 
         Dictionary().addWordToDictionaryByBot(word)
 
-        sendMessage(chatId, "Успешно выполнено.")
+        sendMessage(json, chatId, "Успешно выполнено.")
         resetUserState(chatId)
-        sendMenu(chatId)
+        sendMenu(json, chatId)
+
         return true
     }
 
-    fun showStats(chatId: String, statistics: Statistics) {
+    fun showStats(json: Json, chatId: Long, statistics: Statistics) {
 
         try {
 
             val message = """
-            | <b>Статистика</b>:
-            | 
-            |В Вашем словаре ${statistics.wordsInFile} элементов
-            |Вы точно запомнили ${statistics.learnedWords}
-            |Вы прошли ${statistics.progressPercentage}% пути
-        """.trimMargin()
+            Статистика:
+            
+            В Вашем словаре ${statistics.wordsInFile} элементов
+            Вы точно запомнили ${statistics.learnedWords}
+            Вы прошли ${statistics.progressPercentage}% пути
+        """.trimIndent()
 
             val urlSendMessage = "$API_URL$botToken/sendMessage"
-            val sendMessageBody = """
-        {
-            "chat_id": "$chatId",
-            "text": "$message",
-            "parse_mode": "HTML",
-            "reply_markup": {
-                "inline_keyboard": [
-                    [
-                        {"text": "Вернуться в меню", "callback_data": "$START"}
-                    ]
-                ]
-            }
-        }
-        """.trimIndent()
+
+            val requestBody = SendMessageRequest(
+                chatId,
+                message,
+                ReplyMarkup(
+                    listOf(
+                        listOf(InlineKeyboard(START, "Вернуться в меню"))
+                    )
+                )
+            )
+
+            val requestBodyString = json.encodeToString(requestBody)
 
             val request = HttpRequest.newBuilder()
                 .uri(URI.create(urlSendMessage))
                 .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(sendMessageBody))
+                .POST(HttpRequest.BodyPublishers.ofString(requestBodyString))
                 .build()
 
             client.send(request, HttpResponse.BodyHandlers.ofString())
         } catch (e: Exception) {
             println("Error getting statistics: ${e.message}")
-            sendMessage(chatId, "Произошла ошибка при получении статистики.")
+            sendMessage(json, chatId, "Произошла ошибка при получении статистики.")
         }
     }
 
-    fun sendSettingsMenu(chatId: String) {
+    fun sendSettingsMenu(json: Json, chatId: Long) {
 
         try {
             val urlSendMessage = "$API_URL$botToken/sendMessage"
-            val sendMessageBody = """
-        {
-            "chat_id": "$chatId",
-            "text": "Настройки",
-            "reply_markup": {
-                "inline_keyboard": [
-                    [{"text": "Размер тренировки", "callback_data": "$CHANGE_NUMBER_OF_ITERATIONS"}],
-                    [{"text": "Тип тренировки", "callback_data": "$CHANGE_TYPE_OF_TRAIN"}],
-                    [{"text": "Вернуться в меню", "callback_data": "$START"}]
-                ]
-            }
-        }
-        """.trimIndent()
+
+            val requestBody = SendMessageRequest(
+                chatId,
+                "Настройки",
+                ReplyMarkup(
+                    listOf(
+                        listOf(InlineKeyboard(CHANGE_NUMBER_OF_ITERATIONS, "Размер тренировки")),
+                        listOf(InlineKeyboard(CHANGE_TYPE_OF_TRAIN, "Тип тренировки")),
+                        listOf(InlineKeyboard(START, "Вернуться в меню"))
+                    )
+                )
+            )
+
+            val requestBodyString = json.encodeToString(requestBody)
 
             val request = HttpRequest.newBuilder()
                 .uri(URI.create(urlSendMessage))
                 .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(sendMessageBody))
+                .POST(HttpRequest.BodyPublishers.ofString(requestBodyString))
                 .build()
 
             client.send(request, HttpResponse.BodyHandlers.ofString())
@@ -302,27 +344,27 @@ class TelegramBotService(
         }
     }
 
-    fun sendIterationsSettingMenu(chatId: String, trainer: LearnWordsTrainer) {
+    fun sendIterationsSettingMenu(json: Json, chatId: Long, trainer: LearnWordsTrainer) {
 
         try {
             val urlSendMessage = "$API_URL$botToken/sendMessage"
-            val sendMessageBody = """
-        {
-            "chat_id": "$chatId",
-            "text": "Введите размер одной тренировки.
-            |Текущее значение: ${trainer.settings.numberOfIterations}",
-            "reply_markup": {
-                "inline_keyboard": [
-                    [{"text": "Назад", "callback_data": "$SETTINGS"}]
-                ]
-            }
-        }
-        """.trimMargin()
+
+            val requestBody = SendMessageRequest(
+                chatId,
+                "Введите размер одной тренировки.\nТекущее значение: ${trainer.settings.numberOfIterations}",
+                ReplyMarkup(
+                    listOf(
+                        listOf(InlineKeyboard(SETTINGS, "Назад"))
+                    )
+                )
+            )
+
+            val requestBodyString = json.encodeToString(requestBody)
 
             val request = HttpRequest.newBuilder()
                 .uri(URI.create(urlSendMessage))
                 .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(sendMessageBody))
+                .POST(HttpRequest.BodyPublishers.ofString(requestBodyString))
                 .build()
 
             client.send(request, HttpResponse.BodyHandlers.ofString())
@@ -332,53 +374,55 @@ class TelegramBotService(
         }
     }
 
-    fun handleIterationsSettingCallback(chatId: String, messageText: String, trainer: LearnWordsTrainer) {
+    fun handleIterationsSettingCallback(json: Json, chatId: Long, messageText: String, trainer: LearnWordsTrainer) {
+
         try {
             val numberOfIterations = messageText.trim().toIntOrNull()
 
             if (numberOfIterations == null || numberOfIterations <= WRONG_NUMBER_OF_TRAINS) {
-                sendMessage(chatId, "Пожалуйста, введите число больше 0")
+                sendMessage(json, chatId, "Пожалуйста, введите число больше 0")
             } else {
                 trainer.settings.numberOfIterations = numberOfIterations
                 trainer.settings.saveSettings()
-                sendMessage(chatId, "Количество слов в одной тренировке изменено на $numberOfIterations")
-                sendSettingsMenu(chatId)
+                sendMessage(json, chatId, "Количество слов в одной тренировке изменено на $numberOfIterations")
+                sendSettingsMenu(json, chatId)
             }
 
         } catch (e: Exception) {
             println("Error handling iterations setting: ${e.message}")
-            sendMessage(chatId, "Произошла ошибка при обработке запроса")
+            sendMessage(json, chatId, "Произошла ошибка при обработке запроса")
         }
     }
 
-    fun sendFilterSettingMenu(chatId: String, trainer: LearnWordsTrainer) {
+    fun sendFilterSettingMenu(json: Json, chatId: Long, trainer: LearnWordsTrainer) {
+
         try {
             val urlSendMessage = "$API_URL$botToken/sendMessage"
-            val sendMessageBody = """
-        {
-            "chat_id": "$chatId",
-            "text": "Выберите тип тренировки.
-            |Текущее значение: ${trainer.settings.filter}",
-            "reply_markup": {
-                "inline_keyboard": [
-                    [
-                    |{"text": "Слова", "callback_data": "$FILTER_WORD"},
-                    {"text": "Выражения", "callback_data": "$FILTER_EXPRESSION"}
-                    ],
-                    [
-                    {"text": "Словосочетания", "callback_data": "$FILTER_WORD_PAIR"},
-                    {"text": "Всё", "callback_data": "$FILTER_ALL$"}
-                    ],
-                    [{"text": "Назад", "callback_data": "$SETTINGS"}]
-                ]
-            }
-        }
-        """.trimMargin()
+
+            val requestBody = SendMessageRequest(
+                chatId,
+                "Выберите тип тренировки.\nТекущее значение: ${trainer.settings.filter}",
+                ReplyMarkup(
+                    listOf(
+                        listOf(
+                            InlineKeyboard(FILTER_WORD, "Слова"),
+                            InlineKeyboard(FILTER_EXPRESSION, "Выражения")
+                        ),
+                        listOf(
+                            InlineKeyboard(FILTER_WORD_PAIR, "Словосочетания"),
+                            InlineKeyboard(FILTER_ALL, "Всё")
+                        ),
+                        listOf(InlineKeyboard(SETTINGS, "Назад"))
+                    )
+                )
+            )
+
+            val requestBodyString = json.encodeToString(requestBody)
 
             val request = HttpRequest.newBuilder()
                 .uri(URI.create(urlSendMessage))
                 .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(sendMessageBody))
+                .POST(HttpRequest.BodyPublishers.ofString(requestBodyString))
                 .build()
 
             client.send(request, HttpResponse.BodyHandlers.ofString())
@@ -387,7 +431,8 @@ class TelegramBotService(
         }
     }
 
-    fun handleFilterSettingCallback(chatId: String, callbackData: String, trainer: LearnWordsTrainer) {
+    fun handleFilterSettingCallback(json: Json, chatId: Long, callbackData: String, trainer: LearnWordsTrainer) {
+
         try {
             val (filter, displayName) = when (callbackData) {
                 FILTER_WORD -> "word" to "слова"
@@ -399,27 +444,12 @@ class TelegramBotService(
 
             trainer.settings.filter = displayName
             trainer.settings.saveSettings()
-            sendMessage(chatId, "Тип тренировки изменён на $displayName")
-            sendSettingsMenu(chatId)
+            sendMessage(json, chatId, "Тип тренировки изменён на $displayName")
+            sendSettingsMenu(json, chatId)
 
         } catch (e: Exception) {
             println("Error handling filter setting: ${e.message}")
-            sendMessage(chatId, "Произошла ошибка при изменении типа тренировки")
-        }
-    }
-
-    private fun sendApiRequest(url: String, requestBody: String) {
-
-        try {
-            val request = HttpRequest.newBuilder()
-                .uri(URI.create(url))
-                .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(requestBody))
-                .build()
-
-            client.send(request, HttpResponse.BodyHandlers.ofString())
-        } catch (e: Exception) {
-            println("Failed to send API request: ${e.message}")
+            sendMessage(json, chatId, "Произошла ошибка при изменении типа тренировки")
         }
     }
 }

@@ -9,19 +9,19 @@ enum class AddWordState {
     AWAITING_TRANSLATION,
 }
 
-val userStates = mutableMapOf<String, AddWordState>()
-val userWordData = mutableMapOf<String, Word>()
+val userStates = mutableMapOf<Long?, AddWordState>()
+val userWordData = mutableMapOf<Long?, Word>()
 
-fun resetUserState(chatId: String) {
+fun resetUserState(chatId: Long?) {
     userStates[chatId] = AddWordState.IDLE
     userWordData.remove(chatId)
 }
 
 fun getWordTypeRequirements(type: String): String {
     return when (type) {
-        "слово" -> "Введите 1 слово на английском:"
-        "словосочетание" -> "Введите 2 слова на английском через пробел:"
-        "выражение" -> "Введите выражение (3+ слов) на английском:"
-        else -> "Введите текст на английском:"
+        "слово" -> "Введите 1 слово на иностранном языке:"
+        "словосочетание" -> "Введите 2 слова на иностранном языке через пробел:"
+        "выражение" -> "Введите выражение на иностранном языке (3+ слов):"
+        else -> "Введите текст на иностранном языке:"
     }
 }

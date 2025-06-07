@@ -8,12 +8,12 @@ import trainer.model.Statistics
 import trainer.model.START_USAGE_COUNT
 
 class LearnWordsTrainer(
-    private val dictionary: Dictionary,
+    val dictionary: Dictionary,
     val settings: Settings = Settings().apply { loadSettings() },
     ) {
 
     var question: Question? = null
-    private var currentDictionary: List<Word> = dictionary.loadDictionary()
+    var currentDictionary: List<Word> = dictionary.loadDictionary()
 
     fun getStatistics(): Statistics {
 

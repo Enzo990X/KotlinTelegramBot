@@ -10,9 +10,12 @@ import console.readInput
 import java.io.File
 
 class Settings(
+    private val chatId: Long,
     var numberOfIterations: Int = DEFAULT_NUMBER_OF_TRAINS,
     var filter: String = DEFAULT_FILTER
 ) {
+
+    private val userSettingsFile = File("data/user_${chatId}_settings.txt")
 
     fun loadSettings() {
 

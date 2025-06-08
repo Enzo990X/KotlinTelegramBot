@@ -24,106 +24,132 @@ fun main(args: Array<String>) {
     val activeTrain = mutableMapOf<Long?, TrainState>()
     val userIterationSettingState = mutableMapOf<Long?, Boolean>()
 
-    fun completeTraining(chatId: Long) {
 
-        activeTrain.remove(chatId)
-        service.sendMessage(json, chatId, "Тренировка завершена!")
-        service.sendMenu(json, chatId)
-    }
 
-    fun train(chatId: Long) {
-
-        val numberOfWordsToTrain = trainer.settings.numberOfIterations
-        trainer.resetUsage()
-
-        val trainState = TrainState(chatId, numberOfWordsToTrain)
-        activeTrain[chatId] = trainState
-
-        val context = TrainContext(json, trainer, trainState, { completeTraining(chatId) })
-
-        service.checkNextQuestionAndSend(json, chatId, context)
-    }
-
-    fun addWordToFileWithBot(chatId: Long) {
-
-        val wordsFile = File(WORDS_FILE)
-
-        if (!wordsFile.exists()) {
-            wordsFile.createNewFile()
-        }
-
-        service.sendMessage(json, chatId, "Пополнение словаря")
-        service.sendTypeOfWordMenu(json, chatId)
-    }
-
-    loop@ while (true) {
+    while (true) {
         Thread.sleep(SLEEP)
         val firstUpdate = json.decodeFromString<Response>(service.getUpdates(lastUpdateId))
             .result.firstOrNull() ?: continue
         lastUpdateId = firstUpdate.updateId + INCREMENT
 
-        val messageText = firstUpdate.message?.text
-        val chatId = firstUpdate.message?.chat?.id ?: firstUpdate.callbackQuery?.message?.chat?.id
-        if (chatId == null) {
-            println("Warning: Received update with no chat ID")
-            continue@loop
-        }
-        val data = firstUpdate.callbackQuery?.data
+        handleUpdates(firstUpdate, json, trainer, activeTrain, service, userIterationSettingState)
+    }
+}
 
-        if (data != null) {
+fun completeTraining(
+    chatId: Long,
+    activeTrain: MutableMap<Long?, TrainState>,
+    service: TelegramBotService,
+    json: Json
+) {
 
-            when {
-                data == START -> service.sendMenu(json, chatId)
-                data == LEARN_WORDS -> train(chatId)
-                data.startsWith(CALLBACK_DATA_ANSWER_PREFIX) -> {
-                    activeTrain[chatId]?.let { trainState ->
-                        val context = TrainContext(json, trainer, trainState, { completeTraining(chatId) } )
-                        service.handleAnswer(chatId, data, context)
-                    } ?: service.sendMessage(json, chatId, "Тренировка не начата. Начните новую тренировку.")
-                }
+    activeTrain.remove(chatId)
+    service.sendMessage(json, chatId, "Тренировка завершена!")
+    service.sendMenu(json, chatId)
+}
 
-                data == ADD_WORD -> addWordToFileWithBot(chatId)
-                data == TYPE_WORD || data == TYPE_WORD_PAIR || data == TYPE_EXPRESSION || data == TYPE_ALL ->
-                    service.handleWordTypeSelection(json, chatId, data)
+fun train(
+    chatId: Long,
+    trainer: LearnWordsTrainer,
+    activeTrain: MutableMap<Long?, TrainState>,
+    json: Json,
+    service: TelegramBotService
+) {
 
-                data == STATS -> service.showStats(json, chatId, trainer.getStatistics())
-                data == SETTINGS -> {
-                    userIterationSettingState[chatId] = false
-                    service.sendSettingsMenu(json, chatId)
-                }
+    val numberOfWordsToTrain = trainer.settings.numberOfIterations
+    trainer.resetUsage()
 
-                data == CHANGE_NUMBER_OF_ITERATIONS -> {
-                    userIterationSettingState[chatId] = true
-                    service.sendIterationsSettingMenu(json, chatId, trainer)
-                }
+    val trainState = TrainState(chatId, numberOfWordsToTrain)
+    activeTrain[chatId] = trainState
 
-                data == CHANGE_TYPE_OF_TRAIN -> service.sendFilterSettingMenu(json, chatId, trainer)
-                data == FILTER_WORD || data == FILTER_WORD_PAIR || data == FILTER_EXPRESSION || data == FILTER_ALL ->
-                    service.handleFilterSettingCallback(json, chatId, data, trainer)
+    val context = TrainContext(json, trainer, trainState, { completeTraining(chatId, activeTrain, service, json) })
+
+    service.checkNextQuestionAndSend(json, chatId, context)
+}
+
+fun addWordToFileWithBot(chatId: Long, service: TelegramBotService, json: Json) {
+
+    val wordsFile = File(WORDS_FILE)
+
+    if (!wordsFile.exists()) {
+        wordsFile.createNewFile()
+    }
+
+    service.sendMessage(json, chatId, "Пополнение словаря")
+    service.sendTypeOfWordMenu(json, chatId)
+}
+
+fun handleUpdates (
+    update: Update,
+    json: Json,
+    trainer: LearnWordsTrainer,
+    activeTrain: MutableMap<Long?, TrainState>,
+    service: TelegramBotService,
+    userIterationSettingState: MutableMap<Long?, Boolean>
+) {
+
+    val messageText = update.message?.text
+    val chatId = update.message?.chat?.id ?: update.callbackQuery?.message?.chat?.id
+    if (chatId == null) {
+        println("Warning: Received update with no chat ID")
+        return
+    }
+    val data = update.callbackQuery?.data
+
+    if (data != null) {
+
+        when {
+            data == START -> service.sendMenu(json, chatId)
+            data == LEARN_WORDS -> train(chatId, trainer, activeTrain, json, service)
+            data.startsWith(CALLBACK_DATA_ANSWER_PREFIX) -> {
+                activeTrain[chatId]?.let { trainState ->
+                    val context = TrainContext(json, trainer, trainState,
+                        { completeTraining(chatId, activeTrain, service, json) } )
+                    service.handleAnswer(chatId, data, context)
+                } ?: service.sendMessage(json, chatId, "Тренировка не начата. Начните новую тренировку.")
             }
-        } else if (messageText != null) {
 
-            when {
-                messageText == START -> service.sendMenu(json, chatId)
-                messageText.matches(Regex("\\d+")) && userIterationSettingState[chatId] == true -> {
-                    service.handleIterationsSettingCallback(json, chatId, messageText, trainer)
-                    userIterationSettingState[chatId] = false
-                }
+            data == ADD_WORD -> addWordToFileWithBot(chatId, service, json)
+            data == TYPE_WORD || data == TYPE_WORD_PAIR || data == TYPE_EXPRESSION || data == TYPE_ALL ->
+                service.handleWordTypeSelection(json, chatId, data)
 
-                else -> {
-                    when (userStates[chatId]) {
-                        AddWordState.AWAITING_ORIGINAL -> {
-                            service.handleOriginalWord(json, chatId, messageText)
-                        }
+            data == STATS -> service.showStats(json, chatId, trainer.getStatistics())
+            data == SETTINGS -> {
+                userIterationSettingState[chatId] = false
+                service.sendSettingsMenu(json, chatId)
+            }
 
-                        AddWordState.AWAITING_TRANSLATION -> {
-                            service.handleTranslation(json, chatId, messageText)
-                        }
+            data == CHANGE_NUMBER_OF_ITERATIONS -> {
+                userIterationSettingState[chatId] = true
+                service.sendIterationsSettingMenu(json, chatId, trainer)
+            }
 
-                        else -> {
-                            if (messageText.startsWith("/")) {
-                                service.sendMessage(json, chatId, "Неизвестная команда. Используйте кнопки меню.")
-                            }
+            data == CHANGE_TYPE_OF_TRAIN -> service.sendFilterSettingMenu(json, chatId, trainer)
+            data == FILTER_WORD || data == FILTER_WORD_PAIR || data == FILTER_EXPRESSION || data == FILTER_ALL ->
+                service.handleFilterSettingCallback(json, chatId, data, trainer)
+        }
+    } else if (messageText != null) {
+
+        when {
+            messageText == START -> service.sendMenu(json, chatId)
+            messageText.matches(Regex("\\d+")) && userIterationSettingState[chatId] == true -> {
+                service.handleIterationsSettingCallback(json, chatId, messageText, trainer)
+                userIterationSettingState[chatId] = false
+            }
+
+            else -> {
+                when (userStates[chatId]) {
+                    AddWordState.AWAITING_ORIGINAL -> {
+                        service.handleOriginalWord(json, chatId, messageText)
+                    }
+
+                    AddWordState.AWAITING_TRANSLATION -> {
+                        service.handleTranslation(json, chatId, messageText)
+                    }
+
+                    else -> {
+                        if (messageText.startsWith("/")) {
+                            service.sendMessage(json, chatId, "Неизвестная команда. Используйте кнопки меню.")
                         }
                     }
                 }
@@ -131,6 +157,7 @@ fun main(args: Array<String>) {
         }
     }
 }
+
 
 const val FIRST_INDEX = 0
 const val START_UPDATE_ID = 0L

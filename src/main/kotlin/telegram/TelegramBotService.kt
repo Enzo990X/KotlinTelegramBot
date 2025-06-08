@@ -18,12 +18,13 @@ class TelegramBotService(
 ) {
 
     private val client: HttpClient = HttpClient.newBuilder().build()
+    private val json: Json = Json { ignoreUnknownKeys = true }
 
     companion object {
         private const val API_URL = "https://api.telegram.org/bot"
     }
 
-    fun sendMenu(json: Json, chatId: Long) {
+    fun sendMenu(chatId: Long) {
 
         try {
             val urlSendMessage = "$API_URL$botToken/sendMessage"
@@ -58,7 +59,7 @@ class TelegramBotService(
         }
     }
 
-    fun sendMessage(json: Json, chatId: Long, message: String) {
+    fun sendMessage(chatId: Long, message: String) {
 
         try {
             val encodedMessage = java.net.URLEncoder.encode(message, "UTF-8")
@@ -97,7 +98,7 @@ class TelegramBotService(
         }
     }
 
-    fun checkNextQuestionAndSend(json: Json, chatId: Long, context: TrainContext) {
+    fun checkNextQuestionAndSend(chatId: Long, context: TrainContext) {
         if (context.trainingState.questionsRemaining <= NO_QUESTIONS_LEFT) {
             context.trainingState.completeTraining()
             return
@@ -107,7 +108,7 @@ class TelegramBotService(
         context.trainer.question = question
 
         if (question == null) {
-            sendMessage(json, chatId, "Неизученный материал отсутствует. Добавьте новый.")
+            sendMessage(chatId, "Неизученный материал отсутствует. Добавьте новый.")
             context.trainingState.completeTraining()
             return
         }
@@ -153,7 +154,7 @@ class TelegramBotService(
             val currentQuestion = trainingState.currentQuestion
 
             if (currentQuestion == null || answerIndex == null) {
-                sendMessage(json, chatId, "Произошла ошибка. Пожалуйста, начните тренировку заново.")
+                sendMessage(chatId, "Произошла ошибка. Пожалуйста, начните тренировку заново.")
                 trainingState.completeTraining()
                 return
             }
@@ -168,17 +169,17 @@ class TelegramBotService(
                 "Неверно. Правильный ответ: \"$correctAnswer\"."
             }
 
-            sendMessage(json, chatId, message)
+            sendMessage(chatId, message)
 
             if (trainingState.questionsRemaining > NO_QUESTIONS_LEFT) {
-                checkNextQuestionAndSend(json, chatId, context)
+                checkNextQuestionAndSend(chatId, context)
             } else {
                 trainingState.completeTraining()
             }
         }
     }
 
-    fun sendTypeOfWordMenu(json: Json, chatId: Long) {
+    fun sendTypeOfWordMenu(chatId: Long) {
 
         try {
             val urlSendMessage = "$API_URL$botToken/sendMessage"
@@ -211,7 +212,7 @@ class TelegramBotService(
         }
     }
 
-    fun handleWordTypeSelection(json: Json, chatId: Long, type: String) {
+    fun handleWordTypeSelection(chatId: Long, type: String) {
 
         val wordType = when (type) {
             TYPE_WORD -> "слово"
@@ -223,30 +224,30 @@ class TelegramBotService(
         userWordData[chatId] = Word("", "", wordType)
         userStates[chatId] = AddWordState.AWAITING_ORIGINAL
 
-        sendMessage(json, chatId, getWordTypeRequirements(wordType))
+        sendMessage(chatId, getWordTypeRequirements(wordType))
     }
 
-    fun handleOriginalWord(json: Json, chatId: Long, text: String): Boolean {
+    fun handleOriginalWord(chatId: Long, text: String): Boolean {
 
         val wordData = userWordData[chatId] ?: return false
 
         if (Dictionary().isWordInDictionary(text)) {
-            sendMessage(json, chatId, "Это слово уже есть в словаре. Пожалуйста, введите другое слово.")
+            sendMessage(chatId, "Это слово уже есть в словаре. Пожалуйста, введите другое слово.")
             return false
         }
 
         if (!Dictionary().isWordValid(text, wordData.type)) {
-            sendMessage(json, chatId, "Некорректный формат. ${getWordTypeRequirements(wordData.type)}")
+            sendMessage(chatId, "Некорректный формат. ${getWordTypeRequirements(wordData.type)}")
             return false
         }
 
         wordData.original = text.lowercase()
         userStates[chatId] = AddWordState.AWAITING_TRANSLATION
-        sendMessage(json, chatId, "Введите перевод на русский:")
+        sendMessage(chatId, "Введите перевод на русский:")
         return true
     }
 
-    fun handleTranslation(json: Json, chatId: Long, text: String): Boolean {
+    fun handleTranslation(chatId: Long, text: String): Boolean {
 
         val wordData = userWordData[chatId] ?: return false
 
@@ -256,7 +257,7 @@ class TelegramBotService(
         }.trim()
 
         if (!Dictionary().isTranslationValid(cleanText)) {
-            sendMessage(json, chatId, "Некорректный перевод. Используйте только кириллицу. Введите перевод:")
+            sendMessage(chatId, "Некорректный перевод. Используйте только кириллицу. Введите перевод:")
             return false
         }
 
@@ -267,14 +268,14 @@ class TelegramBotService(
 
         Dictionary().addWordToDictionaryByBot(word)
 
-        sendMessage(json, chatId, "Успешно выполнено.")
+        sendMessage(chatId, "Успешно выполнено.")
         resetUserState(chatId)
-        sendMenu(json, chatId)
+        sendMenu(chatId)
 
         return true
     }
 
-    fun showStats(json: Json, chatId: Long, statistics: Statistics) {
+    fun showStats(chatId: Long, statistics: Statistics) {
 
         try {
 
@@ -309,11 +310,11 @@ class TelegramBotService(
             client.send(request, HttpResponse.BodyHandlers.ofString())
         } catch (e: Exception) {
             println("Error getting statistics: ${e.message}")
-            sendMessage(json, chatId, "Произошла ошибка при получении статистики.")
+            sendMessage(chatId, "Произошла ошибка при получении статистики.")
         }
     }
 
-    fun sendSettingsMenu(json: Json, chatId: Long) {
+    fun sendSettingsMenu(chatId: Long) {
 
         try {
             val urlSendMessage = "$API_URL$botToken/sendMessage"
@@ -344,7 +345,7 @@ class TelegramBotService(
         }
     }
 
-    fun sendIterationsSettingMenu(json: Json, chatId: Long, trainer: LearnWordsTrainer) {
+    fun sendIterationsSettingMenu(chatId: Long, trainer: LearnWordsTrainer) {
 
         try {
             val urlSendMessage = "$API_URL$botToken/sendMessage"
@@ -374,27 +375,27 @@ class TelegramBotService(
         }
     }
 
-    fun handleIterationsSettingCallback(json: Json, chatId: Long, messageText: String, trainer: LearnWordsTrainer) {
+    fun handleIterationsSettingCallback(chatId: Long, messageText: String, trainer: LearnWordsTrainer) {
 
         try {
             val numberOfIterations = messageText.trim().toIntOrNull()
 
             if (numberOfIterations == null || numberOfIterations <= WRONG_NUMBER_OF_TRAINS) {
-                sendMessage(json, chatId, "Пожалуйста, введите число больше 0")
+                sendMessage(chatId, "Пожалуйста, введите число больше 0")
             } else {
                 trainer.settings.numberOfIterations = numberOfIterations
                 trainer.settings.saveSettings()
-                sendMessage(json, chatId, "Количество слов в одной тренировке изменено на $numberOfIterations")
-                sendSettingsMenu(json, chatId)
+                sendMessage(chatId, "Количество слов в одной тренировке изменено на $numberOfIterations")
+                sendSettingsMenu(chatId)
             }
 
         } catch (e: Exception) {
             println("Error handling iterations setting: ${e.message}")
-            sendMessage(json, chatId, "Произошла ошибка при обработке запроса")
+            sendMessage(chatId, "Произошла ошибка при обработке запроса")
         }
     }
 
-    fun sendFilterSettingMenu(json: Json, chatId: Long, trainer: LearnWordsTrainer) {
+    fun sendFilterSettingMenu(chatId: Long, trainer: LearnWordsTrainer) {
 
         try {
             val urlSendMessage = "$API_URL$botToken/sendMessage"
@@ -431,7 +432,7 @@ class TelegramBotService(
         }
     }
 
-    fun handleFilterSettingCallback(json: Json, chatId: Long, callbackData: String, trainer: LearnWordsTrainer) {
+    fun handleFilterSettingCallback(chatId: Long, callbackData: String, trainer: LearnWordsTrainer) {
 
         try {
             val (filter, displayName) = when (callbackData) {
@@ -444,12 +445,12 @@ class TelegramBotService(
 
             trainer.settings.filter = displayName
             trainer.settings.saveSettings()
-            sendMessage(json, chatId, "Тип тренировки изменён на $displayName")
-            sendSettingsMenu(json, chatId)
+            sendMessage(chatId, "Тип тренировки изменён на $displayName")
+            sendSettingsMenu(chatId)
 
         } catch (e: Exception) {
             println("Error handling filter setting: ${e.message}")
-            sendMessage(json, chatId, "Произошла ошибка при изменении типа тренировки")
+            sendMessage(chatId, "Произошла ошибка при изменении типа тренировки")
         }
     }
 }

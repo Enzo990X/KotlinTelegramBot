@@ -10,6 +10,7 @@ import kotlinx.serialization.json.JsonIgnoreUnknownKeys
 @JsonIgnoreUnknownKeys
 
 data class Message(
-    @SerialName("text") val text: String,
+    @SerialName("message_id") val messageId: Long,
+    @SerialName("text") val text: String? = null,
     @SerialName("chat") val chat: Chat
 )

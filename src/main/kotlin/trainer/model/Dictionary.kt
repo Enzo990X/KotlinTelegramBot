@@ -1,13 +1,16 @@
 package trainer.model
 
 import console.WORDS_FILE
+import telegram.UserFileManager
 import trainer.COLLOCATION_SIZE
 import trainer.EXPRESSION_SIZE
 import trainer.WORD_SIZE
 import java.io.File
 import java.lang.IllegalStateException
 
-class Dictionary {
+class Dictionary(chatId: Long) {
+
+    private val wordsFile = UserFileManager.getUserWordsFile(chatId)
 
     fun addWordToDictionary() {
         val wordsFile = File(WORDS_FILE)
@@ -102,7 +105,7 @@ class Dictionary {
         return "$latinInput|$cyrillicInput|$typeInput"
     }
 
-    fun inputCheckForType(typeInput: String, latinInput: String): Boolean {
+    private fun inputCheckForType(typeInput: String, latinInput: String): Boolean {
 
         val wordCount = latinInput.split(" ").size
 
@@ -143,9 +146,7 @@ class Dictionary {
 
     fun saveDictionary(dictionary: List<Word>) {
 
-        val wordsFile = File(WORDS_FILE)
         wordsFile.writeText("")
-
         dictionary.forEach { word ->
             wordsFile.appendText(
                 "${word.original}|${word.translation}|${word.type}|" +
@@ -157,11 +158,9 @@ class Dictionary {
     fun loadDictionary(): List<Word> {
 
         val dictionary = mutableListOf<Word>()
-        val wordsFile = File(WORDS_FILE)
 
         if (!wordsFile.exists()) {
             wordsFile.createNewFile()
-            println("Словарь пуст. Пожалуйста, добавьте слова.")
             return dictionary
         }
 
@@ -179,34 +178,18 @@ class Dictionary {
                 }
             }
         } catch (e: Exception) {
-            throw IllegalStateException("Ошибка: ${e.message}")
+            throw IllegalStateException("Error loading dictionary: ${e.message}")
         }
 
         return dictionary
     }
 
-    fun addWordToDictionaryByBot(word: Word) {
-        val wordsFile = File(WORDS_FILE)
-        if (!wordsFile.exists()) {
-            wordsFile.createNewFile()
+    fun resetProgress() {
+
+        val resetWords = loadDictionary().map { word ->
+            word.copy(correctAnswersCount = START_CORRECT_ANSWERS_COUNT)
         }
-
-        wordsFile.appendText(
-            "${word.original}|${word.translation}|${word.type}|${word.correctAnswersCount}|${word.usageCount}\n",
-            Charsets.UTF_8
-        )
-    }
-
-    fun isWordValid(original: String, type: String): Boolean {
-        if (original.isBlank()) return false
-        if (!Dictionary().checkLatinWords(original)) return false
-        if (!Dictionary().inputCheckForType(type, original)) return false
-        return !Dictionary().isWordInDictionary(original)
-    }
-
-    fun isTranslationValid(translation: String): Boolean {
-        if (translation.isBlank()) return false
-        return Dictionary().checkCyrillicWords(translation)
+        saveDictionary(resetWords)
     }
 }
 

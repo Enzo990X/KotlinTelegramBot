@@ -1,34 +1,35 @@
 package trainer.model
 
-import console.SETTINGS_FILE
 import trainer.DEFAULT_NUMBER_OF_TRAINS
 import trainer.DEFAULT_FILTER
 import console.MENU_ONE
 import console.MENU_TWO
 import console.MENU_ZERO
 import console.readInput
-import java.io.File
+import telegram.UserFileManager
 
-class Settings(
-    var numberOfIterations: Int = DEFAULT_NUMBER_OF_TRAINS,
+class Settings(chatId: Long) {
+
+    private val settingsFile = UserFileManager.getUserSettingsFile(chatId)
+    var numberOfIterations: Int = DEFAULT_NUMBER_OF_TRAINS
     var filter: String = DEFAULT_FILTER
-) {
 
-    fun loadSettings() {
+    init {
+        loadSettings()
+    }
 
-        val settingsFile = File(SETTINGS_FILE)
-        if (settingsFile.exists()) {
-            settingsFile.forEachLine { line ->
-                val (key, value) = line.split("=", limit = 2)
-                when (key.trim()) {
-                    "numberOfIterations" -> numberOfIterations = value.trim().toIntOrNull() ?: DEFAULT_NUMBER_OF_TRAINS
-                    "filter" -> filter = value.trim()
-                }
+    private fun loadSettings() {
+        if (!settingsFile.exists()) {
+            saveSettings()
+            return
+        }
+
+        settingsFile.forEachLine { line ->
+            val (key, value) = line.split("=", limit = 2)
+            when (key) {
+                "numberOfIterations" -> numberOfIterations = value.toIntOrNull() ?: 10
+                "filter" -> filter = value
             }
-        } else {
-            println("Нет сохранённых настроек. Установлены значения по умолчанию.")
-            numberOfIterations = DEFAULT_NUMBER_OF_TRAINS
-            filter = DEFAULT_FILTER
         }
     }
 
@@ -75,8 +76,6 @@ class Settings(
     }
 
     fun saveSettings() {
-
-        val settingsFile = File(SETTINGS_FILE)
         settingsFile.writeText("numberOfIterations=$numberOfIterations\nfilter=$filter")
     }
 }

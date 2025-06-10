@@ -25,9 +25,9 @@ class Settings(chatId: Long) {
         }
 
         settingsFile.forEachLine { line ->
-            val (key, value) = line.split("=", limit = 2)
+            val (key, value) = line.split("=", limit = SPLIT_LIMIT)
             when (key) {
-                "numberOfIterations" -> numberOfIterations = value.toIntOrNull() ?: 10
+                "numberOfIterations" -> numberOfIterations = value.toIntOrNull() ?: DEFAULT_NUMBER_OF_TRAINS
                 "filter" -> filter = value
             }
         }
@@ -79,3 +79,5 @@ class Settings(chatId: Long) {
         settingsFile.writeText("numberOfIterations=$numberOfIterations\nfilter=$filter")
     }
 }
+
+const val SPLIT_LIMIT = 2

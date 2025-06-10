@@ -6,7 +6,7 @@ import trainer.model.Question
 
 fun main() {
 
-    val trainer = LearnWordsTrainer(chatId = 0)
+    val trainer = LearnWordsTrainer(NO_CHAT_ID)
 
     showMenu(trainer)
 }
@@ -25,7 +25,7 @@ fun showMenu(trainer: LearnWordsTrainer) {
 
         when (menuInput) {
             MENU_ONE -> learnWords(trainer)
-            MENU_TWO -> Dictionary(chatId = 0).addWordToDictionary()
+            MENU_TWO -> Dictionary(NO_CHAT_ID).addWordToDictionary()
             MENU_THREE -> showStatistics(trainer)
             MENU_FOUR -> trainer.settings.changeSettings()
             MENU_ZERO -> return
@@ -127,4 +127,5 @@ const val ANSWER_FOUR = 4
 const val INDEX_UPDATE = 1
 
 const val WORDS_FILE = "words.txt"
-const val SETTINGS_FILE = "settings.txt"
+
+const val NO_CHAT_ID = 0L

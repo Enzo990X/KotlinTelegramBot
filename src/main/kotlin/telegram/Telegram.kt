@@ -15,115 +15,147 @@ fun main(args: Array<String>) {
 
     val json = Json { ignoreUnknownKeys = true }
 
-    val dictionary = Dictionary()
-
     var lastUpdateId = START_UPDATE_ID
 
-    val service = TelegramBotService(args[FIRST_INDEX])
-    val trainer = LearnWordsTrainer(dictionary)
-    val activeTrain = mutableMapOf<Long?, TrainState>()
-    val userIterationSettingState = mutableMapOf<Long?, Boolean>()
+    val service = TgBotMainService(args[FIRST_INDEX])
+    val dictionaryService = TgBotDictionaryService(args[FIRST_INDEX])
+    val activeTrain = mutableMapOf<Long, Pair<LearnWordsTrainer, TrainState>>()
+    val userIterationSettingState: MutableMap<Long?, Boolean> = mutableMapOf()
 
-    fun completeTraining(chatId: Long) {
-
-        activeTrain.remove(chatId)
-        service.sendMessage(json, chatId, "Тренировка завершена!")
-        service.sendMenu(json, chatId)
-    }
-
-    fun train(chatId: Long) {
-
-        val numberOfWordsToTrain = trainer.settings.numberOfIterations
-        trainer.resetUsage()
-
-        val trainState = TrainState(chatId, numberOfWordsToTrain)
-        activeTrain[chatId] = trainState
-
-        val context = TrainContext(json, trainer, trainState, { completeTraining(chatId) })
-
-        service.checkNextQuestionAndSend(json, chatId, context)
-    }
-
-    fun addWordToFileWithBot(chatId: Long) {
-
-        val wordsFile = File(WORDS_FILE)
-
-        if (!wordsFile.exists()) {
-            wordsFile.createNewFile()
-        }
-
-        service.sendMessage(json, chatId, "Пополнение словаря")
-        service.sendTypeOfWordMenu(json, chatId)
-    }
-
-    loop@ while (true) {
+    while (true) {
         Thread.sleep(SLEEP)
         val firstUpdate = json.decodeFromString<Response>(service.getUpdates(lastUpdateId))
             .result.firstOrNull() ?: continue
         lastUpdateId = firstUpdate.updateId + INCREMENT
 
-        val messageText = firstUpdate.message?.text
-        val chatId = firstUpdate.message?.chat?.id ?: firstUpdate.callbackQuery?.message?.chat?.id
-        if (chatId == null) {
-            println("Warning: Received update with no chat ID")
-            continue@loop
-        }
-        val data = firstUpdate.callbackQuery?.data
+        handleUpdates(firstUpdate, service, dictionaryService, activeTrain, userIterationSettingState)
+    }
+}
 
-        if (data != null) {
+fun completeTraining(
+    chatId: Long,
+    activeTrain: MutableMap<Long, Pair<LearnWordsTrainer, TrainState>>,
+    service: TgBotMainService
+) {
+    activeTrain.remove(chatId)
+    service.sendMessage(chatId, "Тренировка завершена!")
+    service.sendMenu(chatId)
+}
 
-            when {
-                data == START -> service.sendMenu(json, chatId)
-                data == LEARN_WORDS -> train(chatId)
-                data.startsWith(CALLBACK_DATA_ANSWER_PREFIX) -> {
-                    activeTrain[chatId]?.let { trainState ->
-                        val context = TrainContext(json, trainer, trainState, { completeTraining(chatId) } )
-                        service.handleAnswer(chatId, data, context)
-                    } ?: service.sendMessage(json, chatId, "Тренировка не начата. Начните новую тренировку.")
+fun train(
+    chatId: Long,
+    trainer: LearnWordsTrainer,
+    activeTrain: MutableMap<Long, Pair<LearnWordsTrainer, TrainState>>,
+    service: TgBotMainService,
+    dictionaryService: TgBotDictionaryService,
+) {
+    val numberOfWordsToTrain = trainer.settings.numberOfIterations
+    trainer.resetUsage()
+
+    val trainState = TrainState(chatId, numberOfWordsToTrain)
+    activeTrain[chatId] = trainer to trainState
+
+    val onComplete = { completeTraining(chatId, activeTrain, service) }
+    dictionaryService.checkNextQuestionAndSend(chatId, trainer, trainState, onComplete)
+}
+
+fun addWordToFileWithBot(
+    chatId: Long,
+    service: TgBotMainService,
+    dictionaryService: TgBotDictionaryService,
+) {
+
+    val wordsFile = File(WORDS_FILE)
+
+    if (!wordsFile.exists()) {
+        wordsFile.createNewFile()
+    }
+
+    service.sendMessage(chatId, "Пополнение словаря")
+    dictionaryService.sendTypeOfWordMenu(chatId)
+}
+
+fun handleUpdates(
+    update: Update,
+    service: TgBotMainService,
+    dictionaryService: TgBotDictionaryService,
+    activeTrain: MutableMap<Long, Pair<LearnWordsTrainer, TrainState>>,
+    userIterationSettingState: MutableMap<Long?, Boolean>,
+) {
+
+    val messageText = update.message?.text
+    val chatId = update.message?.chat?.id ?: update.callbackQuery?.message?.chat?.id ?: return
+
+    val data = update.callbackQuery?.data
+
+    if (data != null) {
+
+        when {
+            data == LOAD_DICTIONARY -> service.handleLoadDictionary(chatId)
+            data == EMPTY_DICTIONARY -> service.handleEmptyDictionary(chatId)
+
+            data == MENU -> service.sendMenu(chatId)
+
+            data == LEARN_WORDS -> train(chatId, LearnWordsTrainer(chatId), activeTrain, service, dictionaryService)
+            data.startsWith(CALLBACK_DATA_ANSWER_PREFIX) -> {
+                val (trainer, trainState) = activeTrain[chatId] ?: run {
+                    service.sendMessage(chatId, "Тренировка не начата. Начните новую тренировку.")
+                    return
                 }
 
-                data == ADD_WORD -> addWordToFileWithBot(chatId)
-                data == TYPE_WORD || data == TYPE_WORD_PAIR || data == TYPE_EXPRESSION || data == TYPE_ALL ->
-                    service.handleWordTypeSelection(json, chatId, data)
-
-                data == STATS -> service.showStats(json, chatId, trainer.getStatistics())
-                data == SETTINGS -> {
-                    userIterationSettingState[chatId] = false
-                    service.sendSettingsMenu(json, chatId)
-                }
-
-                data == CHANGE_NUMBER_OF_ITERATIONS -> {
-                    userIterationSettingState[chatId] = true
-                    service.sendIterationsSettingMenu(json, chatId, trainer)
-                }
-
-                data == CHANGE_TYPE_OF_TRAIN -> service.sendFilterSettingMenu(json, chatId, trainer)
-                data == FILTER_WORD || data == FILTER_WORD_PAIR || data == FILTER_EXPRESSION || data == FILTER_ALL ->
-                    service.handleFilterSettingCallback(json, chatId, data, trainer)
+                dictionaryService.handleAnswer(chatId, data, trainer, trainState)
+                { completeTraining(chatId, activeTrain, service) }
             }
-        } else if (messageText != null) {
 
-            when {
-                messageText == START -> service.sendMenu(json, chatId)
-                messageText.matches(Regex("\\d+")) && userIterationSettingState[chatId] == true -> {
-                    service.handleIterationsSettingCallback(json, chatId, messageText, trainer)
-                    userIterationSettingState[chatId] = false
-                }
+            data == ADD_WORD -> addWordToFileWithBot(chatId, service, dictionaryService)
+            data == TYPE_WORD || data == TYPE_WORD_PAIR || data == TYPE_EXPRESSION || data == TYPE_ALL ->
+                dictionaryService.handleWordTypeSelection(chatId, data)
 
-                else -> {
-                    when (userStates[chatId]) {
-                        AddWordState.AWAITING_ORIGINAL -> {
-                            service.handleOriginalWord(json, chatId, messageText)
-                        }
+            data == STATS -> {
+                val statistics = LearnWordsTrainer(chatId).getStatistics()
+                dictionaryService.showStats(chatId, statistics)
+            }
+            data == SETTINGS -> {
+                userIterationSettingState[chatId] = false
+                service.sendSettingsMenu(chatId)
+            }
 
-                        AddWordState.AWAITING_TRANSLATION -> {
-                            service.handleTranslation(json, chatId, messageText)
-                        }
+            data == CHANGE_NUMBER_OF_ITERATIONS -> {
+                userIterationSettingState[chatId] = true
+                dictionaryService.sendIterationsSettingMenu(chatId, LearnWordsTrainer(chatId))
+            }
 
-                        else -> {
-                            if (messageText.startsWith("/")) {
-                                service.sendMessage(json, chatId, "Неизвестная команда. Используйте кнопки меню.")
-                            }
+            data == CHANGE_TYPE_OF_TRAIN -> dictionaryService.sendFilterSettingMenu(chatId, LearnWordsTrainer(chatId))
+            data == FILTER_WORD || data == FILTER_WORD_PAIR || data == FILTER_EXPRESSION || data == FILTER_ALL ->
+                dictionaryService.handleFilterSettingCallback(chatId, data, LearnWordsTrainer(chatId))
+            data == RESET_PROGRESS -> dictionaryService.handleResetProgress(chatId)
+            data == SUPPORT -> service.sendSupportInfo(chatId)
+        }
+    } else if (messageText != null) {
+
+        when {
+            messageText == START -> service.sendGreeting(chatId)
+            messageText == MENU -> service.sendMenu(chatId)
+            messageText.matches(Regex("\\d+")) && userIterationSettingState[chatId] == true -> {
+                dictionaryService.handleIterationsSettingCallback(chatId, messageText, LearnWordsTrainer(chatId))
+                userIterationSettingState[chatId] = false
+            }
+
+            else -> {
+                when (userStates[chatId]) {
+                    AddWordState.AWAITING_ORIGINAL -> {
+                        val dictionary = Dictionary(chatId)
+                        dictionaryService.handleOriginalWord(chatId, messageText, dictionary)
+                    }
+
+                    AddWordState.AWAITING_TRANSLATION -> {
+                        val dictionary = Dictionary(chatId)
+                        dictionaryService.handleTranslation(chatId, messageText, dictionary)
+                    }
+
+                    else -> {
+                        if (messageText.startsWith("/")) {
+                            service.sendMessage(chatId, "Неизвестная команда. Используйте кнопки меню.")
                         }
                     }
                 }
@@ -141,6 +173,9 @@ const val LEARN_WORDS = "learn_words"
 const val ADD_WORD = "add_word"
 const val STATS = "stats"
 const val SETTINGS = "settings"
+const val RESET_PROGRESS = "reset_progress"
+const val SUPPORT = "support"
 
 const val START = "/start"
+const val MENU = "/menu"
 const val CALLBACK_DATA_ANSWER_PREFIX = "answer_"

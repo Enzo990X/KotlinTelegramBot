@@ -23,3 +23,9 @@ tasks.test {
 kotlin {
     jvmToolchain(23)
 }
+
+tasks.withType<ProcessResources> {
+    from("src/main/resources") {
+        into("resources")
+    }
+}

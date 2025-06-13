@@ -207,12 +207,17 @@ class TgBotMainService(private val botToken: String) {
                 "Настройки",
                 ReplyMarkup(
                     listOf(
-                        listOf(InlineKeyboard(CHANGE_NUMBER_OF_ITERATIONS, "Размер тренировки")),
-                        listOf(InlineKeyboard(CHANGE_TYPE_OF_TRAIN, "Тип тренировки")),
-                        listOf(InlineKeyboard(RESET_PROGRESS, "Сбросить прогресс")),
-                        listOf(InlineKeyboard(MENU, "Вернуться в меню"))
-                    )
+                        listOf(
+                        InlineKeyboard(CHANGE_NUMBER_OF_ITERATIONS, "Размер тренировки"),
+                        InlineKeyboard(CHANGE_TYPE_OF_TRAIN, "Тип тренировки")
+                    ),
+                    listOf(
+                        InlineKeyboard(RESET_PROGRESS, "Сбросить прогресс"),
+                        InlineKeyboard(SUPPORT, "Поддержка")
+                    ),
+                    listOf(InlineKeyboard(MENU, "Вернуться в меню"))
                 )
+            )
             )
 
             val requestBodyString = json.encodeToString(requestBody)
@@ -226,6 +231,36 @@ class TgBotMainService(private val botToken: String) {
             client.send(request, HttpResponse.BodyHandlers.ofString())
         } catch (e: Exception) {
             println("Failed to send settings menu: ${e.message}")
+        }
+    }
+
+    fun sendSupportInfo(chatId: Long) {
+
+        try {
+            val supportMessage = """
+            Создатель и поддержка: @Enzo990X
+            
+            По всем вопросам, проблемам и предложениям пишите в личные сообщения.
+            Я постараюсь ответить как можно скорее!
+            
+            Спасибо, что используете моего бота!
+        """.trimIndent()
+
+            val urlSendMessage = "$API_URL$botToken/sendMessage"
+            val requestBody = SendMessageRequest(
+                chatId, supportMessage, ReplyMarkup(listOf(listOf(InlineKeyboard(SETTINGS, "Назад")))))
+
+            val requestBodyString = json.encodeToString(requestBody)
+
+            val request = HttpRequest.newBuilder()
+                .uri(URI.create(urlSendMessage))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(requestBodyString))
+                .build()
+
+            client.send(request, HttpResponse.BodyHandlers.ofString())
+        } catch (e: Exception) {
+            println("Error sending support info: ${e.message}")
         }
     }
 }

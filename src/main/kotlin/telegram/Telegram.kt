@@ -129,6 +129,7 @@ fun handleUpdates(
             data == FILTER_WORD || data == FILTER_WORD_PAIR || data == FILTER_EXPRESSION || data == FILTER_ALL ->
                 dictionaryService.handleFilterSettingCallback(chatId, data, LearnWordsTrainer(chatId))
             data == RESET_PROGRESS -> dictionaryService.handleResetProgress(chatId)
+            data == SUPPORT -> service.sendSupportInfo(chatId)
         }
     } else if (messageText != null) {
 
@@ -173,7 +174,7 @@ const val ADD_WORD = "add_word"
 const val STATS = "stats"
 const val SETTINGS = "settings"
 const val RESET_PROGRESS = "reset_progress"
-
+const val SUPPORT = "support"
 
 const val START = "/start"
 const val MENU = "/menu"

@@ -71,7 +71,7 @@ class TgBotMainService(private val botToken: String) {
                 ReplyMarkup(
                     listOf(
                         listOf(
-                            InlineKeyboard(LEARN_WORDS, "Учить слова"),
+                            InlineKeyboard(LEARN_WORDS, "Заниматься"),
                             InlineKeyboard(ADD_WORD, "Пополнить словарь")
                         ),
                         listOf(
@@ -108,12 +108,9 @@ class TgBotMainService(private val botToken: String) {
                 return
             }
 
-            val greetingText = """
-            Привет! Я - твой помощник по изучению иностранных слов, словосочетаний и выражений.
-            У меня есть словарь для английского языка, которым ты можешь воспользоваться, но пока он один 
-            и содержит слова разного уровня сложности. Можешь выбрать его или начать с пустого, 
-            который будешь наполнять самостоятельно.
-        """.trimIndent()
+            val greetingText = " Привет! Я - твой помощник по изучению иностранных слов, словосочетаний и выражений. " +
+                    "Пока у меня есть словарь только английского языка и он содержит слова разного уровня сложности. " +
+                    "Можешь загрузить его или начать с пустого, который будешь наполнять самостоятельно."
 
             val replyMarkup = """
             {
@@ -208,8 +205,8 @@ class TgBotMainService(private val botToken: String) {
                 ReplyMarkup(
                     listOf(
                         listOf(
-                        InlineKeyboard(CHANGE_NUMBER_OF_ITERATIONS, "Размер тренировки"),
-                        InlineKeyboard(CHANGE_TYPE_OF_TRAIN, "Тип тренировки")
+                        InlineKeyboard(CHANGE_NUMBER_OF_ITERATIONS, "Размер занятия"),
+                        InlineKeyboard(CHANGE_TYPE_OF_TRAIN, "Тип занятия")
                     ),
                     listOf(
                         InlineKeyboard(RESET_PROGRESS, "Сбросить прогресс"),

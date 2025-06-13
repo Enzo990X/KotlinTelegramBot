@@ -36,7 +36,7 @@ class TgBotDictionaryService(private val botToken: String) {
         trainer.question = question
 
         if (question == null) {
-            TgBotMainService(botToken).sendMessage(chatId, "Неизученный материал отсутствует. Добавьте новый.")
+            TgBotMainService(botToken).sendMessage(chatId, "Неизученный материал отсутствует. Добавь новый.")
             trainingState.completeTraining()
             return
         }
@@ -47,7 +47,7 @@ class TgBotDictionaryService(private val botToken: String) {
             val urlSendMessage = "$API_URL$botToken/sendMessage"
             val requestBody = SendMessageRequest(
                 chatId,
-                "Выберите перевод для ${question.learningWord.original}",
+                "Как переводится ${question.learningWord.original}?",
                 ReplyMarkup(
                     question.translationsToPick.mapIndexed { index, word ->
                         InlineKeyboard(CALLBACK_DATA_ANSWER_PREFIX + index, word.translation)
@@ -89,7 +89,7 @@ class TgBotDictionaryService(private val botToken: String) {
         if (currentQuestion == null || answerIndex == null) {
             TgBotMainService(botToken).sendMessage(
                 chatId,
-                "Произошла ошибка. Пожалуйста, начните тренировку заново."
+                "Произошла ошибка. Пожалуйста, начни занятие заново."
             )
             trainingState.completeTraining()
             return
@@ -102,7 +102,7 @@ class TgBotDictionaryService(private val botToken: String) {
         val message = if (isCorrect) {
             "Правильно!"
         } else {
-            "Неверно. Правильный ответ: \"$correctAnswer\"."
+            "Нет. Правильный ответ: \"$correctAnswer\"."
         }
 
         TgBotMainService(botToken).sendMessage(chatId, message)
@@ -122,7 +122,7 @@ class TgBotDictionaryService(private val botToken: String) {
 
             val requestBody = SendMessageRequest(
                 chatId,
-                "Выбери тип слова для добавления:",
+                "Что ты хочешь добавить?",
                 ReplyMarkup(
                     listOf(
                         listOf(InlineKeyboard(TYPE_WORD, "Слово (1 слово)")),
@@ -159,7 +159,7 @@ class TgBotDictionaryService(private val botToken: String) {
 
         userWordData[chatId] = Word("", "", wordType, START_CORRECT_ANSWERS_COUNT, START_USAGE_COUNT)
         userStates[chatId] = AddWordState.AWAITING_ORIGINAL
-        TgBotMainService(botToken).sendMessage(chatId, "Введи $wordType на иностранном языке")
+        TgBotMainService(botToken).sendMessage(chatId, "Какое иностранное $wordType ты хочешь добавить?")
     }
 
     fun handleOriginalWord(chatId: Long, original: String, dictionary: Dictionary) {
@@ -182,7 +182,7 @@ class TgBotDictionaryService(private val botToken: String) {
 
         if (dictionary.isWordInDictionary(original)) {
             TgBotMainService(botToken).sendMessage(chatId,
-                "Это слово уже есть в словаре. Пожалуйста, введи другое слово.")
+                "Это слово уже есть в твоём словаре. Введи другое слово.")
             return
         }
 
@@ -194,7 +194,7 @@ class TgBotDictionaryService(private val botToken: String) {
 
         wordData.original = original
         userStates[chatId] = AddWordState.AWAITING_TRANSLATION
-        TgBotMainService(botToken).sendMessage(chatId, "Введи перевод")
+        TgBotMainService(botToken).sendMessage(chatId, "Как оно переводится?")
     }
 
     fun handleTranslation(chatId: Long, translation: String, dictionary: Dictionary) {
@@ -272,7 +272,8 @@ class TgBotDictionaryService(private val botToken: String) {
 
             val requestBody = SendMessageRequest(
                 chatId,
-                "Введите размер одной тренировки.\nТекущее значение: ${trainer.settings.numberOfIterations}",
+                "Сколько слов, словосочетаний или выражений показывать за одно занятие?\n" +
+                        "Текущее значение: ${trainer.settings.numberOfIterations}",
                 ReplyMarkup(
                     listOf(
                         listOf(InlineKeyboard(SETTINGS, "Назад"))
@@ -307,7 +308,7 @@ class TgBotDictionaryService(private val botToken: String) {
                 trainer.settings.saveSettings()
                 TgBotMainService(botToken).sendMessage(
                     chatId,
-                    "Количество слов в одной тренировке изменено на $numberOfIterations"
+                    "Значение изменено на $numberOfIterations"
                 )
                 TgBotMainService(botToken).sendSettingsMenu(chatId)
             }
@@ -325,7 +326,7 @@ class TgBotDictionaryService(private val botToken: String) {
 
             val requestBody = SendMessageRequest(
                 chatId,
-                "Выбери тип тренировки.\nТекущее значение: ${trainer.settings.filter}",
+                "Что ты хочешь изучать?\nТекущее значение: ${trainer.settings.filter}",
                 ReplyMarkup(
                     listOf(
                         listOf(
@@ -368,7 +369,7 @@ class TgBotDictionaryService(private val botToken: String) {
 
             trainer.settings.filter = displayName
             trainer.settings.saveSettings()
-            TgBotMainService(botToken).sendMessage(chatId, "Тип тренировки изменён на $displayName")
+            TgBotMainService(botToken).sendMessage(chatId, "Значение изменено на $displayName")
             TgBotMainService(botToken).sendSettingsMenu(chatId)
 
         } catch (e: Exception) {
@@ -409,6 +410,3 @@ const val WRONG_NUMBER_OF_TRAINS = 0
 const val NO_QUESTIONS_LEFT = 0
 
 const val COLUMNS = 2
-const val UNICODE_DIGITS_IN_CHAR = 4
-const val UNICODE_HEX_GROUP_INDEX = 1
-const val RADIX_HEXADECIMAL = 16

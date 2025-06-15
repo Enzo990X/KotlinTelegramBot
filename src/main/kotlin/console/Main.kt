@@ -37,8 +37,6 @@ fun learnWords(trainer: LearnWordsTrainer) {
 
     val numberOfWordsToTrain = trainer.settings.numberOfIterations
 
-    trainer.resetUsage()
-
     repeat(numberOfWordsToTrain) {
         val question = trainer.getNextQuestion()
         trainer.question = question

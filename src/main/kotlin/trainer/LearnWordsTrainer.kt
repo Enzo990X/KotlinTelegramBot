@@ -30,15 +30,6 @@ class LearnWordsTrainer(chatId: Long) {
         return Statistics(learnedWords, wordsInFile, progressPercentage)
     }
 
-    fun resetUsage() {
-
-        currentDictionary.forEach { word ->
-            word.usageCount = START_USAGE_COUNT
-        }
-
-        dictionary.saveDictionary(currentDictionary)
-    }
-
     fun getNextQuestion(): Question? {
 
         refreshDictionary()

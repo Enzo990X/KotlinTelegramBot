@@ -56,7 +56,6 @@ fun train(
     dictionaryService: TgBotDictionaryService,
 ) {
     val numberOfWordsToTrain = trainer.settings.numberOfIterations
-    trainer.resetUsage()
 
     val trainState = TrainState(chatId, numberOfWordsToTrain)
     activeTrain[chatId] = trainer to trainState

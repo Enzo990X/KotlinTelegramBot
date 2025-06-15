@@ -265,37 +265,9 @@ class TgBotMainService(private val botToken: String) {
             println("Error sending support info: ${e.message}")
         }
     }
-
-    fun notifyUsersAboutRestart() {
-
-        val usersDir = File("/opt/telegram-bot/users")
-        if (!usersDir.exists() || !usersDir.isDirectory) {
-            println("No users directory found")
-            return
-        }
-
-        usersDir.listFiles()?.forEach { userDir ->
-            try {
-                val chatId = userDir.name.toLongOrNull()
-                if (chatId != null) {
-                    val botService = TgBotMainService(botToken)
-                    botService.sendMessage(
-                        chatId,
-                        "Готовится установка обновления. " +
-                                "Бот не будет присылать сообщения пару минут."
-                    )
-                    Thread.sleep(UPDATE_SLEEP)
-                }
-            } catch (e: Exception) {
-                println("Failed to notify user ${userDir.name}: ${e.message}")
-            }
-        }
-        println("All users have been notified about the restart")
-    }
 }
 
 const val LOAD_DICTIONARY = "load_dictionary"
 const val EMPTY_DICTIONARY = "empty_dictionary"
 
 const val TIMEOUT = 60L
-const val UPDATE_SLEEP = 100L

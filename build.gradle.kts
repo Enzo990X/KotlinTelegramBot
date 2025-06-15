@@ -1,6 +1,7 @@
 plugins {
     kotlin("jvm") version "2.1.10"
     kotlin("plugin.serialization") version "2.1.21"
+    id("com.github.johnrengelman.shadow") version "8.1.1"
     application
 }
 
@@ -22,6 +23,22 @@ tasks.test {
 }
 kotlin {
     jvmToolchain(23)
+}
+
+application {
+    mainClass.set("telegram.TelegramKt")
+}
+
+tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJar") {
+    archiveBaseName.set("telegram-bot")
+    archiveClassifier.set("")
+    archiveVersion.set("")
+}
+
+tasks.named<JavaExec>("run") {
+    if (project.hasProperty("botToken")) {
+        args(project.property("botToken"))
+    }
 }
 
 tasks.withType<ProcessResources> {

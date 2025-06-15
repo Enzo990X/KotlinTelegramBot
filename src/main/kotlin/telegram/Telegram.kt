@@ -13,6 +13,12 @@ fun main(args: Array<String>) {
         return
     }
 
+    if (args.size > REQUIRED_ARGUMENTS && args[SECOND_INDEX] == "--notify-restart") {
+        TgBotMainService(args[FIRST_INDEX]).notifyUsersAboutRestart()
+        Thread.sleep(SLEEP)
+        return
+    }
+
     val json = Json { ignoreUnknownKeys = true }
 
     var lastUpdateId = START_UPDATE_ID
@@ -165,6 +171,9 @@ fun handleUpdates(
 }
 
 const val FIRST_INDEX = 0
+const val SECOND_INDEX = 1
+const val REQUIRED_ARGUMENTS = 1
+
 const val START_UPDATE_ID = 0L
 const val SLEEP = 2000L
 const val INCREMENT = 1

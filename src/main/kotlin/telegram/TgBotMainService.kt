@@ -100,7 +100,7 @@ class TgBotMainService(private val botToken: String) {
 
         try {
             val urlSendPhoto = "$API_URL$botToken/sendPhoto"
-            val filePath = "C:/Users/Enzo/IdeaProjects/KotlinTelegramBot/2.1.jpg"
+            val filePath = "/opt/2.1.jpg"
             val imageFile = File(filePath)
 
             if (!imageFile.exists()) {
@@ -110,14 +110,14 @@ class TgBotMainService(private val botToken: String) {
 
             val greetingText = " Привет! Я - твой помощник по изучению иностранных слов, словосочетаний и выражений. " +
                     "У меня есть небольшой словарь английского языка. Ты можешь загрузить его и затем пополнять " +
-                    "новыми словами и выражениями. А можем начать с чистого листа и составлять наш собственный " +
+                    "новыми словами и выражениями. Или мы можем начать с чистого листа и составлять наш собственный " +
                     "словарь. \nЧто выбираешь?"
 
             val replyMarkup = """
             {
                 "inline_keyboard": [
                     [{"text": "Загрузить словарь", "callback_data": "$LOAD_DICTIONARY"}],
-                    [{"text": "Чистый словарь", "callback_data": "$EMPTY_DICTIONARY"}]
+                    [{"text": "Начать с пустого словаря", "callback_data": "$EMPTY_DICTIONARY"}]
                 ]
             }
         """.trimIndent()
@@ -159,24 +159,27 @@ class TgBotMainService(private val botToken: String) {
     fun handleLoadDictionary(chatId: Long) {
 
         try {
-            val defaultWordsFile = File(WORDS_FILE)
+            val defaultWordsFile = UserFileManager.GLOBAL_WORDS_FILE
             val userWordsFile = UserFileManager.getUserWordsFile(chatId)
 
-            if (!defaultWordsFile.exists()) {
+            if (!defaultWordsFile.exists() || defaultWordsFile.length() == 0L) {
                 userWordsFile.writeText("")
-
-                TgBotMainService(botToken).sendMessage(chatId,
-                    "Словарь не найден. Создан пустой словарь.")
+                TgBotMainService(botToken).sendMessage(
+                    chatId,
+                    "Словарь не найден. Создан пустой словарь."
+                )
             } else {
                 defaultWordsFile.copyTo(userWordsFile, overwrite = true)
+
+                userWordsFile.setReadable(true, false)
+                userWordsFile.setWritable(true, false)
                 TgBotMainService(botToken).sendMessage(chatId, "Словарь успешно загружен!")
             }
-
 
             TgBotMainService(botToken).sendMenu(chatId)
         } catch (e: Exception) {
             println("Error loading dictionary: ${e.message}")
-            TgBotMainService(botToken).sendMessage(chatId, "Произошла ошибка при загрузке словаря")
+            TgBotMainService(botToken).sendMessage(chatId, "Произошла ошибка при загрузке словаря: ${e.message}")
         }
     }
 
@@ -206,16 +209,16 @@ class TgBotMainService(private val botToken: String) {
                 ReplyMarkup(
                     listOf(
                         listOf(
-                        InlineKeyboard(CHANGE_NUMBER_OF_ITERATIONS, "Размер занятия"),
-                        InlineKeyboard(CHANGE_TYPE_OF_TRAIN, "Тип занятия")
-                    ),
-                    listOf(
-                        InlineKeyboard(RESET_PROGRESS, "Сбросить прогресс"),
-                        InlineKeyboard(SUPPORT, "Поддержка")
-                    ),
-                    listOf(InlineKeyboard(MENU, "Вернуться в меню"))
+                            InlineKeyboard(CHANGE_NUMBER_OF_ITERATIONS, "Размер занятия"),
+                            InlineKeyboard(CHANGE_TYPE_OF_TRAIN, "Тип занятия")
+                        ),
+                        listOf(
+                            InlineKeyboard(RESET_PROGRESS, "Сбросить прогресс"),
+                            InlineKeyboard(SUPPORT, "Поддержка")
+                        ),
+                        listOf(InlineKeyboard(MENU, "Вернуться в меню"))
+                    )
                 )
-            )
             )
 
             val requestBodyString = json.encodeToString(requestBody)
@@ -246,7 +249,8 @@ class TgBotMainService(private val botToken: String) {
 
             val urlSendMessage = "$API_URL$botToken/sendMessage"
             val requestBody = SendMessageRequest(
-                chatId, supportMessage, ReplyMarkup(listOf(listOf(InlineKeyboard(SETTINGS, "Назад")))))
+                chatId, supportMessage, ReplyMarkup(listOf(listOf(InlineKeyboard(SETTINGS, "Назад"))))
+            )
 
             val requestBodyString = json.encodeToString(requestBody)
 
@@ -261,9 +265,37 @@ class TgBotMainService(private val botToken: String) {
             println("Error sending support info: ${e.message}")
         }
     }
+
+    fun notifyUsersAboutRestart() {
+
+        val usersDir = File("/opt/telegram-bot/users")
+        if (!usersDir.exists() || !usersDir.isDirectory) {
+            println("No users directory found")
+            return
+        }
+
+        usersDir.listFiles()?.forEach { userDir ->
+            try {
+                val chatId = userDir.name.toLongOrNull()
+                if (chatId != null) {
+                    val botService = TgBotMainService(botToken)
+                    botService.sendMessage(
+                        chatId,
+                        "Готовится установка обновления. " +
+                                "Бот не будет присылать сообщения пару минут."
+                    )
+                    Thread.sleep(UPDATE_SLEEP)
+                }
+            } catch (e: Exception) {
+                println("Failed to notify user ${userDir.name}: ${e.message}")
+            }
+        }
+        println("All users have been notified about the restart")
+    }
 }
 
 const val LOAD_DICTIONARY = "load_dictionary"
 const val EMPTY_DICTIONARY = "empty_dictionary"
 
 const val TIMEOUT = 60L
+const val UPDATE_SLEEP = 100L
